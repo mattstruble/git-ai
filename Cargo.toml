@@ -2,12 +2,24 @@
 name = "git-ai"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.70"
 authors = ["Matt Struble <mestruble@users.noreply.github.com>"]
 description = "AI-assisted git workflow with cursor-agent"
 license = "MIT"
 repository = "https://github.com/mattstruble/git-ai"
+documentation = "https://docs.rs/git-ai"
+readme = "README.md"
 keywords = ["git", "ai", "cursor", "cli", "workflow"]
 categories = ["command-line-utilities", "development-tools"]
+exclude = [
+    "target/",
+    ".git/",
+    ".github/",
+    "*.log",
+    "flake.*",
+    "justfile",
+    "renovate.json",
+]
 
 [[bin]]
 name = "git-ai"
@@ -15,13 +27,23 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
+clap_complete = "4.0"
 anyhow = "1.0"
-tokio = { version = "1.0", features = ["full"] }
-reqwest = { version = "0.12", features = ["stream", "rustls-tls"], default-features = false }
+tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "process", "io-util"] }
+reqwest = { version = "0.12", features = ["rustls-tls"], default-features = false }
 serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+dirs = "5.0"
 futures-util = "0.3"
 
 [dev-dependencies]
 mockall = "0.12"
 tokio-test = "0.4"
 tempfile = "3.0"
+
+[profile.release]
+opt-level = "z"     # Optimize for size
+lto = true          # Enable Link Time Optimization
+codegen-units = 1   # Reduce number of codegen units to increase optimizations
+panic = "abort"     # Abort on panic (reduces binary size)
+strip = true        # Strip symbols from binary
