@@ -153,3 +153,158 @@ async fn ensure_cursor_agent(force: bool) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::{CommandFactory, Parser};
+
+    #[test]
+    fn test_cli_parsing_commit_command() {
+        let args = vec!["git-ai", "commit", "-m", "test message", "-f"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        
+        match cli.command {
+            Commands::Commit { message, force } => {
+                assert_eq!(message, Some("test message".to_string()));
+                assert!(force);
+            },
+            _ => panic!("Expected commit command"),
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_commit_command_minimal() {
+        let args = vec!["git-ai", "commit"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        
+        match cli.command {
+            Commands::Commit { message, force } => {
+                assert_eq!(message, None);
+                assert!(!force);
+            },
+            _ => panic!("Expected commit command"),
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_pr_command() {
+        let args = vec!["git-ai", "pr", "--message", "pr description"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        
+        match cli.command {
+            Commands::Pr { message, force } => {
+                assert_eq!(message, Some("pr description".to_string()));
+                assert!(!force);
+            },
+            _ => panic!("Expected pr command"),
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_merge_command() {
+        let args = vec!["git-ai", "merge", "feature/branch", "-m", "merge message", "--force"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        
+        match cli.command {
+            Commands::Merge { branch, message, force } => {
+                assert_eq!(branch, "feature/branch");
+                assert_eq!(message, Some("merge message".to_string()));
+                assert!(force);
+            },
+            _ => panic!("Expected merge command"),
+        }
+    }
+
+    #[test]
+    fn test_cli_parsing_merge_command_minimal() {
+        let args = vec!["git-ai", "merge", "main"];
+        let cli = Cli::try_parse_from(args).unwrap();
+        
+        match cli.command {
+            Commands::Merge { branch, message, force } => {
+                assert_eq!(branch, "main");
+                assert_eq!(message, None);
+                assert!(!force);
+            },
+            _ => panic!("Expected merge command"),
+        }
+    }
+
+    #[test]
+    fn test_cli_version() {
+        let cli = Cli::command();
+        let version = cli.get_version().unwrap();
+        assert_eq!(version, "0.1.0");
+    }
+
+    #[test]
+    fn test_cli_name() {
+        let cli = Cli::command();
+        let name = cli.get_name();
+        assert_eq!(name, "git-ai");
+    }
+
+    #[test]
+    fn test_message_and_force_extraction_commit() {
+        let cli_command = Commands::Commit {
+            message: Some("test".to_string()),
+            force: true,
+        };
+        
+        let (message, force) = match &cli_command {
+            Commands::Commit { message, force } => (message.clone(), *force),
+            Commands::Pr { message, force } => (message.clone(), *force),
+            Commands::Merge { message, force, .. } => (message.clone(), *force),
+        };
+        
+        assert_eq!(message, Some("test".to_string()));
+        assert!(force);
+    }
+
+    #[test]
+    fn test_message_and_force_extraction_pr() {
+        let cli_command = Commands::Pr {
+            message: None,
+            force: false,
+        };
+        
+        let (message, force) = match &cli_command {
+            Commands::Commit { message, force } => (message.clone(), *force),
+            Commands::Pr { message, force } => (message.clone(), *force),
+            Commands::Merge { message, force, .. } => (message.clone(), *force),
+        };
+        
+        assert_eq!(message, None);
+        assert!(!force);
+    }
+
+    #[test]
+    fn test_message_and_force_extraction_merge() {
+        let cli_command = Commands::Merge {
+            branch: "develop".to_string(),
+            message: Some("merge develop".to_string()),
+            force: true,
+        };
+        
+        let (message, force) = match &cli_command {
+            Commands::Commit { message, force } => (message.clone(), *force),
+            Commands::Pr { message, force } => (message.clone(), *force),
+            Commands::Merge { message, force, .. } => (message.clone(), *force),
+        };
+        
+        assert_eq!(message, Some("merge develop".to_string()));
+        assert!(force);
+    }
+
+    // Note: Testing register_git_alias and ensure_cursor_agent would require mocking
+    // std::process::Command and reqwest::Client, which is complex but doable with
+    // dependency injection or test-specific implementations
+    
+    #[test]
+    fn test_cursor_install_url_is_valid() {
+        // Basic validation that the URL is well-formed
+        assert!(CURSOR_INSTALL_URL.starts_with("https://"));
+        assert!(CURSOR_INSTALL_URL.contains("cursor.com"));
+    }
+}

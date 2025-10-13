@@ -25,3 +25,62 @@ impl PrCommand {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_prompt_without_custom_message() {
+        let command = PrCommand;
+        let prompt = command.default_prompt(None);
+        
+        assert!(prompt.contains("Create a comprehensive pull request description"));
+        assert!(prompt.contains("**Summary**"));
+        assert!(prompt.contains("**Changes**"));
+        assert!(prompt.contains("**Why**"));
+        assert!(prompt.contains("**Testing**"));
+        assert!(prompt.contains("**Notes**"));
+        assert!(prompt.contains("Please analyze the git changes"));
+        assert!(!prompt.contains("Specific focus areas"));
+    }
+
+    #[test]
+    fn test_default_prompt_with_custom_message() {
+        let command = PrCommand;
+        let custom_message = Some("Focus on security improvements".to_string());
+        let prompt = command.default_prompt(custom_message);
+        
+        assert!(prompt.contains("Create a comprehensive pull request description"));
+        assert!(prompt.contains("Specific focus areas: Focus on security improvements"));
+        assert!(prompt.contains("Please analyze the git changes"));
+        assert!(prompt.contains("**Summary**"));
+    }
+
+    #[test]
+    fn test_prompt_structure() {
+        let command = PrCommand;
+        let prompt = command.default_prompt(None);
+        
+        // Verify the prompt has the expected sections in markdown format
+        assert!(prompt.contains("- **Summary**"));
+        assert!(prompt.contains("- **Changes**"));
+        assert!(prompt.contains("- **Why**"));
+        assert!(prompt.contains("- **Testing**"));
+        assert!(prompt.contains("- **Notes**"));
+        
+        // Ensure it mentions markdown formatting
+        assert!(prompt.contains("Format the output in clean Markdown"));
+    }
+
+    #[test]
+    fn test_empty_custom_message() {
+        let command = PrCommand;
+        let custom_message = Some("".to_string());
+        let prompt = command.default_prompt(custom_message);
+        
+        // Should still include the custom message structure even if empty
+        assert!(prompt.contains("Specific focus areas: "));
+        assert!(prompt.contains("Create a comprehensive pull request description"));
+    }
+}
