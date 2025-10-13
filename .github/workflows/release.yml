@@ -29,7 +29,7 @@ jobs:
           dry_run: true
           default_bump: false
           custom_release_rules: |
-            feat:minor,fix:patch,docs:patch,style:patch,refactor:patch,perf:patch,test:patch,chore:skip,ci:skip
+            feat:minor,fix:patch,docs:patch,style:patch,refactor:patch,perf:patch,test:patch
   # Build binaries for multiple platforms
   build:
     needs: check-release
@@ -122,7 +122,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           custom_release_rules: |
-            feat:minor,fix:patch,docs:patch,style:patch,refactor:patch,perf:patch,test:patch,chore:skip,ci:skip
+            feat:minor,fix:patch,docs:patch,style:patch,refactor:patch,perf:patch,test:patch
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v1
         with:
