@@ -1,0 +1,163 @@
+name: Release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  # Analyze commits to determine if a release should be created
+  check-release:
+    runs-on: ubuntu-latest
+    outputs:
+      should-release: ${{ steps.version.outputs.should-release }}
+      new-version: ${{ steps.version.outputs.new-version }}
+      changelog: ${{ steps.version.outputs.changelog }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check for conventional commits and determine version
+        id: version
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          dry_run: true
+          default_bump: false
+          custom_release_rules: |
+            feat:minor,fix:patch,docs:patch,style:patch,refactor:patch,perf:patch,test:patch,chore:skip,ci:skip
+  # Build binaries for multiple platforms
+  build:
+    needs: check-release
+    if: needs.check-release.outputs.should-release == 'true'
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: git-ai-linux-x86_64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: git-ai-linux-aarch64
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: git-ai-macos-x86_64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            name: git-ai-macos-aarch64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            name: git-ai-windows-x86_64.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - name: Setup cross-compilation (Linux ARM64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build binary
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Prepare binary (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cp target/${{ matrix.target }}/release/git-ai ${{ matrix.name }}
+          chmod +x ${{ matrix.name }}
+      - name: Prepare binary (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cp target/${{ matrix.target }}/release/git-ai.exe ${{ matrix.name }}
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}
+          if-no-files-found: error
+  # Create the GitHub release
+  release:
+    needs: [check-release, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Move artifacts to release directory
+        run: |
+          mkdir -p release
+          find artifacts -name "git-ai*" -type f -exec cp {} release/ \;
+          ls -la release/
+      - name: Create checksums
+        run: |
+          cd release
+          sha256sum * > checksums.txt
+          cat checksums.txt
+      - name: Create GitHub Release
+        id: create_release
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          custom_release_rules: |
+            feat:minor,fix:patch,docs:patch,style:patch,refactor:patch,perf:patch,test:patch,chore:skip,ci:skip
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.create_release.outputs.new_tag }}
+          name: Release ${{ steps.create_release.outputs.new_tag }}
+          body: |
+            ## Changes
+
+            ${{ steps.create_release.outputs.changelog }}
+
+            ## Installation
+
+            ### Download Binary
+            Download the appropriate binary for your platform from the assets below.
+
+            ### Homebrew (macOS)
+            ```bash
+            brew install mattstruble/git-ai/git-ai
+            ```
+
+            ### Nix
+            ```bash
+            nix profile install github:mattstruble/git-ai
+            ```
+
+            ### Cargo
+            ```bash
+            cargo install git-ai
+            ```
+
+            ## Checksums
+
+            See `checksums.txt` for SHA256 checksums of all binaries.
+          files: |
+            release/*
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}

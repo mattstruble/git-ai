@@ -1,0 +1,22 @@
+[package]
+name = "git-ai"
+version = "0.1.0"
+edition = "2021"
+authors = ["Matt Struble <mestruble@users.noreply.github.com>"]
+description = "AI-assisted git workflow with cursor-agent"
+license = "MIT"
+repository = "https://github.com/mattstruble/git-ai"
+keywords = ["git", "ai", "cursor", "cli", "workflow"]
+categories = ["command-line-utilities", "development-tools"]
+
+[[bin]]
+name = "git-ai"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.0", features = ["derive"] }
+anyhow = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+reqwest = { version = "0.11", features = ["stream"] }
+serde = { version = "1.0", features = ["derive"] }
+futures-util = "0.3"

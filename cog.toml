@@ -1,0 +1,31 @@
+# Cocogitto (Conventional Commits) Configuration
+
+[changelog]
+path = "CHANGELOG.md"
+template = "remote"
+remote = "github.com"
+repository = "git-ai"
+owner = "mattstruble"
+
+[bump]
+# Automatically create annotated tags
+annotated = true
+# Don't create git hooks automatically
+hooks_enabled = false
+
+[commit_types]
+feat = { changelog_title = "Features", bump = "minor" }
+fix = { changelog_title = "Bug Fixes", bump = "patch" }
+docs = { changelog_title = "Documentation", bump = "patch" }
+style = { changelog_title = "Styling", bump = "patch" }
+refactor = { changelog_title = "Refactoring", bump = "patch" }
+perf = { changelog_title = "Performance", bump = "patch" }
+test = { changelog_title = "Testing", bump = "patch" }
+chore = { changelog_title = "Miscellaneous", bump = "patch" }
+ci = { changelog_title = "Continuous Integration", bump = "patch" }
+
+[git_hooks]
+# Disable git hooks by default - can be enabled with `cog install-hook`
+pre_push = false
+pre_commit = false
+commit_msg = false
