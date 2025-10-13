@@ -13,7 +13,7 @@ jobs:
   check-release:
     runs-on: ubuntu-latest
     outputs:
-      should-release: ${{ steps.version.outputs.should-release }}
+      should-release: ${{ steps.set-release.outputs.should-release }}
       new-version: ${{ steps.version.outputs.new-version }}
       changelog: ${{ steps.version.outputs.changelog }}
     steps:
@@ -30,6 +30,16 @@ jobs:
           default_bump: false
           custom_release_rules: |
             feat:minor,fix:patch,docs:patch,style:patch,refactor:patch,perf:patch,test:patch
+      - name: Set release flag
+        id: set-release
+        run: |
+          if [ -n "${{ steps.version.outputs.new_version }}" ]; then
+            echo "should-release=true" >> $GITHUB_OUTPUT
+            echo "Release should be created for version ${{ steps.version.outputs.new_version }}"
+          else
+            echo "should-release=false" >> $GITHUB_OUTPUT
+            echo "No release needed"
+          fi
   # Build binaries for multiple platforms
   build:
     needs: check-release
