@@ -32,7 +32,7 @@ pub struct CommitCommand;
 impl CommitCommand {
     fn has_staged_files(&self) -> bool {
         let output = Command::new("git")
-            .args(&["diff", "--cached", "--name-only"])
+            .args(["diff", "--cached", "--name-only"])
             .output();
 
         match output {

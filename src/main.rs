@@ -79,7 +79,7 @@ async fn main() -> Result<()> {
 /// Register git alias if not already present
 fn register_git_alias() -> Result<()> {
     let output = StdCommand::new("git")
-        .args(&["config", "--global", "--get", "alias.ai"])
+        .args(["config", "--global", "--get", "alias.ai"])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
@@ -89,7 +89,7 @@ fn register_git_alias() -> Result<()> {
         println!("Registering 'git ai' alias...");
 
         StdCommand::new("git")
-            .args(&["config", "--global", "alias.ai", "!git-ai"])
+            .args(["config", "--global", "alias.ai", "!git-ai"])
             .status()
             .context("Failed to register git alias")?;
 

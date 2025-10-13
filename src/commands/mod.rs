@@ -47,7 +47,7 @@ impl GitAiCommand {
 /// Run cursor-agent with the given prompt and optional force flag
 async fn run_cursor_agent(prompt: &str, force: bool) -> Result<()> {
     let mut cmd = StdCommand::new("cursor-agent");
-    cmd.args(&["-p", prompt]);
+    cmd.args(["-p", prompt]);
 
     if force {
         cmd.arg("--force");
