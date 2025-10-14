@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       should-release: ${{ steps.set-release.outputs.should-release }}
-      new-version: ${{ steps.version.outputs.new-version }}
+      new-version: ${{ steps.set-release.outputs.new-version }}
       changelog: ${{ steps.version.outputs.changelog }}
     steps:
       - name: Checkout
@@ -30,15 +30,40 @@ jobs:
           default_bump: false
           custom_release_rules: |
             feat:minor,fix:patch,docs:patch,style:patch,refactor:patch,perf:patch,test:patch
+      
+      - name: Debug version outputs  
+        run: |
+          echo "Debug: All step outputs:"
+          echo "new_tag: '${{ steps.version.outputs.new_tag }}'"
+          echo "new_version: '${{ steps.version.outputs.new_version }}'"
+          echo "previous_tag: '${{ steps.version.outputs.previous_tag }}'"
+          echo "changelog: '${{ steps.version.outputs.changelog }}'"
+      
       - name: Set release flag
         id: set-release
         run: |
-          if [ -n "${{ steps.version.outputs.new_version }}" ]; then
+          # The action outputs new_tag (with v prefix) not new_version
+          NEW_TAG="${{ steps.version.outputs.new_tag }}"
+          NEW_VERSION="${{ steps.version.outputs.new_version }}"
+          
+          echo "Raw NEW_TAG: '$NEW_TAG'"
+          echo "Raw NEW_VERSION: '$NEW_VERSION'"
+          
+          # Use new_tag and strip 'v' prefix if present, fallback to new_version  
+          if [ -n "$NEW_TAG" ]; then
+            VERSION=${NEW_TAG#v}  # Remove 'v' prefix if present
             echo "should-release=true" >> $GITHUB_OUTPUT
-            echo "Release should be created for version ${{ steps.version.outputs.new_version }}"
+            echo "new-version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Release should be created for version $VERSION (from new_tag: $NEW_TAG)"
+          elif [ -n "$NEW_VERSION" ]; then
+            VERSION=${NEW_VERSION#v}  # Remove 'v' prefix if present
+            echo "should-release=true" >> $GITHUB_OUTPUT
+            echo "new-version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Release should be created for version $VERSION (from new_version: $NEW_VERSION)"
           else
             echo "should-release=false" >> $GITHUB_OUTPUT
-            echo "No release needed"
+            echo "new-version=" >> $GITHUB_OUTPUT
+            echo "No release needed - no version detected"
           fi
   # Build binaries for multiple platforms
   build:
