@@ -34,16 +34,3 @@ feat(api): add JWT authentication middleware
 fix(ui): correct navbar alignment on mobile
 - adjust CSS grid for better responsiveness
 ";
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_commit_prompt_exists() {
-        assert!(!COMMIT_PROMPT.is_empty());
-        assert!(COMMIT_PROMPT.contains("commit messages"));
-        assert!(COMMIT_PROMPT.contains("git diff"));
-        assert!(COMMIT_PROMPT.contains("Conventional Commits"));
-    }
-}

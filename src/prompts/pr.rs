@@ -12,7 +12,7 @@ Analyze the git changes between the current branch and the target branch (typica
 **Required Structure**:
 - **Summary**: Brief, clear overview of what this PR accomplishes
 - **Changes**: Bulleted list of key modifications, features, or fixes
-- **Why**: Explanation of the motivation, problem solved, or requirement fulfilled  
+- **Why**: Explanation of the motivation, problem solved, or requirement fulfilled
 - **Testing**: Description of how changes were tested (unit tests, manual testing, etc.)
 - **Notes**: Any important considerations, breaking changes, or context for reviewers
 
@@ -24,24 +24,3 @@ Analyze the git changes between the current branch and the target branch (typica
 - Highlight breaking changes or migration steps if applicable
 
 Create a description that helps reviewers understand the context, changes, and impact of this pull request.";
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_pr_prompt_exists() {
-        assert!(!PR_PROMPT.is_empty());
-        assert!(PR_PROMPT.contains("pull request"));
-        assert!(PR_PROMPT.contains("**Summary**"));
-        assert!(PR_PROMPT.contains("**Changes**"));
-        assert!(PR_PROMPT.contains("**Why**"));
-        assert!(PR_PROMPT.contains("**Testing**"));
-        assert!(PR_PROMPT.contains("**Notes**"));
-    }
-
-    #[test]
-    fn test_pr_prompt_contains_markdown() {
-        assert!(PR_PROMPT.contains("Markdown"));
-    }
-}

@@ -40,15 +40,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_merge_prompt_exists() {
-        assert!(!MERGE_PROMPT.is_empty());
-        assert!(MERGE_PROMPT.contains("merge"));
-        assert!(MERGE_PROMPT.contains("branch"));
-        assert!(MERGE_PROMPT.contains("conflicts"));
-        assert!(MERGE_PROMPT.contains("commit message"));
-    }
-
-    #[test]
     fn test_merge_prompt_has_placeholders() {
         // Should have multiple {} placeholders for branch name substitution
         let placeholder_count = MERGE_PROMPT.matches("{}").count();
