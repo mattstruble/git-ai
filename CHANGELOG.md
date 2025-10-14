@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Security**: User confirmation prompts for cursor-agent installation and git alias registration
+- **Security**: User confirmation prompts for cursor-agent installation
 - **Security**: Basic script validation and checksum verification framework for cursor-agent installer
 - **CLI**: `--dry-run` flag to preview prompts without executing cursor-agent
 - **CLI**: `--verbose` flag for detailed debugging output
@@ -37,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AI-assisted PR description generation  
 - AI-assisted merge summaries
 - Automatic cursor-agent installation
-- Git alias registration (`git ai`)
+- Git plugin support (`git ai` works automatically)
 - Cross-platform support (macOS, Linux, Unix-like systems)
 - Integration with cursor-agent for AI functionality
 
@@ -45,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Commit Command**: Generate contextual commit messages from git diff
 - **PR Command**: Create professional pull request descriptions
 - **Merge Command**: Get AI assistance with merge summaries
-- **Auto-setup**: Automatic cursor-agent installation and git alias registration
+- **Auto-setup**: Automatic cursor-agent installation
 - **Flexible Prompts**: Support for custom messages to guide AI generation
 
 ### Technical

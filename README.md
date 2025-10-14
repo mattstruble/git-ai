@@ -11,7 +11,7 @@ AI-assisted git workflow with cursor-agent integration
 - **Smart Commit Messages**: Generate concise, descriptive commit messages from your git diff
 - **PR Descriptions**: Create professional pull request descriptions summarizing recent changes
 - **Merge Summaries**: Get AI assistance with merge conflict resolution and summary messages
-- **Automatic Setup**: Automatically installs cursor-agent and registers git alias
+- **Automatic Setup**: Automatically installs cursor-agent
 - **Cross-platform**: Works on macOS, Linux, and other Unix-like systems
 
 ## Installation
@@ -173,7 +173,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ## Usage
 
-The tool automatically registers itself as a git alias, so you can use either:
+Since `git-ai` is installed as a git plugin, you can use either:
 
 ```bash
 git-ai <command> [options]
@@ -205,7 +205,7 @@ git ai merge feature/api-refactor --force -m "Focus on database migration confli
 
 ## How it Works
 
-1. **Git Alias Registration**: On first run, registers `git ai` as an alias to `git-ai`
+1. **Git Plugin**: Works as a native git plugin 
 2. **Cursor-agent Setup**: Automatically downloads and installs cursor-agent if not present
 3. **Context Generation**: Creates appropriate prompts based on the selected command
 4. **AI Processing**: Calls cursor-agent with the generated prompt for AI assistance
