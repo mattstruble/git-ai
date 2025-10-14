@@ -2,19 +2,8 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-/// Configuration overrides for prompts
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
-pub struct PromptConfig {
-    pub commit: Option<String>,
-    pub pr: Option<String>,
-    pub merge: Option<String>,
-}
-
 #[derive(Debug, Deserialize, Serialize, Default)]
 pub struct Config {
-    #[serde(default)]
-    pub prompts: PromptConfig,
-
     #[serde(default)]
     pub behavior: BehaviorConfig,
 
@@ -125,37 +114,30 @@ impl Config {
     /// Create a sample configuration file
     pub fn create_sample_config() -> Result<String> {
         let sample = Config {
-            prompts: PromptConfig {
-                commit: Some("Generate a concise commit message for all changes.".to_string()),
-                pr: Some("Generate a comprehensive PR description.".to_string()),
-                merge: Some(
-                    "Generate a merge summary and conflict resolution guidance.".to_string(),
-                ),
-            },
             behavior: BehaviorConfig { verbose: false },
             commands: CommandConfigs {
                 commit: CommitConfig {
-                    prompt: None,
+                    prompt: Some(
+                        "Custom commit prompt (optional - overrides built-in prompt)".to_string(),
+                    ),
                     no_confirm: Some(false),
                 },
                 pr: PrConfig {
-                    prompt: None,
+                    prompt: Some(
+                        "Custom PR prompt (optional - overrides built-in prompt)".to_string(),
+                    ),
                     no_confirm: Some(false),
                 },
                 merge: MergeConfig {
-                    prompt: None,
+                    prompt: Some(
+                        "Custom merge prompt (optional - overrides built-in prompt)".to_string(),
+                    ),
                     no_confirm: Some(false),
                 },
             },
         };
 
         serde_yaml::to_string(&sample).context("Failed to serialize sample configuration")
-    }
-
-    /// Get the prompt configuration (legacy support)
-    #[allow(dead_code)] // Keep for backward compatibility
-    pub fn get_prompts(&self) -> &PromptConfig {
-        &self.prompts
     }
 }
 
@@ -174,7 +156,7 @@ mod tests {
     #[test]
     fn test_sample_config_generation() {
         let sample = Config::create_sample_config().unwrap();
-        assert!(sample.contains("prompts:"));
+        assert!(sample.contains("commands:"));
         assert!(sample.contains("behavior:"));
         assert!(sample.contains("commands:"));
         assert!(sample.contains("verbose"));
@@ -191,10 +173,8 @@ behavior:
 
 commands:
   commit:
+    prompt: "Custom commit prompt"
     no_confirm: true
-
-prompts:
-  commit: "Custom commit prompt"
 "#;
 
         fs::write(&config_path, test_config).unwrap();
@@ -203,7 +183,7 @@ prompts:
         assert!(config.behavior.verbose);
         assert_eq!(config.commands.commit.no_confirm, Some(true));
         assert_eq!(
-            config.prompts.commit.as_deref(),
+            config.commands.commit.prompt.as_deref(),
             Some("Custom commit prompt")
         );
     }
@@ -211,23 +191,24 @@ prompts:
     #[test]
     fn test_prompt_fallbacks() {
         let config = Config::default();
-        let prompts = config.get_prompts();
 
-        // Should have default empty prompts
-        assert!(prompts.commit.is_none());
-        assert!(prompts.pr.is_none());
-        assert!(prompts.merge.is_none());
+        // Commands should have no custom prompts by default (use built-in prompts)
+        assert!(config.commands.commit.prompt.is_none());
+        assert!(config.commands.pr.prompt.is_none());
+        assert!(config.commands.merge.prompt.is_none());
     }
 
     #[test]
     fn test_prompt_overrides() {
         let mut config = Config::default();
-        config.prompts.commit = Some("Custom commit prompt".to_string());
+        config.commands.commit.prompt = Some("Custom commit prompt".to_string());
 
-        let prompts = config.get_prompts();
-        assert_eq!(prompts.commit.as_deref(), Some("Custom commit prompt"));
-        // Other prompts should remain default (None)
-        assert!(prompts.pr.is_none());
-        assert!(prompts.merge.is_none());
+        assert_eq!(
+            config.commands.commit.prompt.as_deref(),
+            Some("Custom commit prompt")
+        );
+        // Other command prompts should remain default (None)
+        assert!(config.commands.pr.prompt.is_none());
+        assert!(config.commands.merge.prompt.is_none());
     }
 }
