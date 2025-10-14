@@ -3,8 +3,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Deserialize, Serialize)]
-#[derive(Default)]
+#[derive(Debug, Deserialize, Serialize, Default)]
 pub struct Config {
     #[serde(default)]
     pub prompts: PromptConfig,
@@ -24,7 +23,6 @@ pub struct BehaviorConfig {
     #[serde(default = "default_verbose")]
     pub verbose: bool,
 }
-
 
 impl Default for BehaviorConfig {
     fn default() -> Self {
@@ -89,7 +87,8 @@ impl Config {
             Some(git_ai_config)
         } else {
             // Fallback to home directory
-            dirs::home_dir().map(|home_dir| home_dir.join(".config").join("git-ai").join("config.yaml"))
+            dirs::home_dir()
+                .map(|home_dir| home_dir.join(".config").join("git-ai").join("config.yaml"))
         }
     }
 
