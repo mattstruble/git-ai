@@ -9,7 +9,7 @@ use std::process::Command as StdCommand;
 #[derive(Parser)]
 #[command(name = "git-ai")]
 #[command(about = "AI-assisted git workflow with cursor-agent")]
-#[command(version = "0.4.5")]
+#[command(version = "0.4.6")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
