@@ -44,6 +44,6 @@ mod tests {
         assert!(!COMMIT_PROMPT.is_empty());
         assert!(COMMIT_PROMPT.contains("commit messages"));
         assert!(COMMIT_PROMPT.contains("git diff"));
-        assert!(COMMIT_PROMPT.contains("conventional commit"));
+        assert!(COMMIT_PROMPT.contains("Conventional Commits"));
     }
 }
