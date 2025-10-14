@@ -1,10 +1,12 @@
 pub mod commit;
 pub mod config;
+pub mod init;
 pub mod merge;
 pub mod pr;
 
 pub use commit::CommitCommand;
 pub use config::ConfigCommand;
+pub use init::InitCommand;
 pub use merge::MergeCommand;
 pub use pr::PrCommand;
 

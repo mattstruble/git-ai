@@ -85,6 +85,32 @@ enum Commands {
         #[arg(long)]
         init: bool,
     },
+    /// Initialize a new project repository
+    Init {
+        /// Target programming language (e.g., python, javascript, rust, go)
+        #[arg(short, long)]
+        language: Option<String>,
+
+        /// Project name
+        #[arg(short, long)]
+        name: Option<String>,
+
+        /// Custom message to guide the AI
+        #[arg(short, long)]
+        message: Option<String>,
+
+        /// Skip user confirmation prompts
+        #[arg(long)]
+        no_confirm: bool,
+
+        /// Print the prompt without executing cursor-agent
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Show verbose output for debugging
+        #[arg(short, long)]
+        verbose: bool,
+    },
 }
 
 #[tokio::main]
@@ -102,6 +128,9 @@ async fn main() -> Result<()> {
             dry_run, verbose, ..
         } => (*dry_run, *verbose),
         Commands::Merge {
+            dry_run, verbose, ..
+        } => (*dry_run, *verbose),
+        Commands::Init {
             dry_run, verbose, ..
         } => (*dry_run, *verbose),
         Commands::Config { .. } => (false, false), // Config doesn't use cursor-agent

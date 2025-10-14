@@ -40,6 +40,9 @@ pub struct CommandConfigs {
 
     #[serde(default)]
     pub merge: MergeConfig,
+
+    #[serde(default)]
+    pub init: InitConfig,
 }
 
 /// Configuration for commit command
@@ -59,6 +62,13 @@ pub struct PrConfig {
 /// Configuration for merge command
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct MergeConfig {
+    pub prompt: Option<String>,
+    pub no_confirm: Option<bool>,
+}
+
+/// Configuration for init command
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct InitConfig {
     pub prompt: Option<String>,
     pub no_confirm: Option<bool>,
 }
@@ -131,6 +141,12 @@ impl Config {
                 merge: MergeConfig {
                     prompt: Some(
                         "Custom merge prompt (optional - overrides built-in prompt)".to_string(),
+                    ),
+                    no_confirm: Some(false),
+                },
+                init: InitConfig {
+                    prompt: Some(
+                        "Custom init prompt (optional - overrides built-in prompt)".to_string(),
                     ),
                     no_confirm: Some(false),
                 },

@@ -35,3 +35,12 @@ pub struct ConfigArgs {
     pub show: bool,
     pub init: bool,
 }
+
+/// Arguments specific to init command
+#[derive(Debug, Clone)]
+pub struct InitArgs {
+    pub common: CommonArgs,
+    pub language: Option<String>,
+    pub name: Option<String>,
+    pub no_confirm: bool,
+}

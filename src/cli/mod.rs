@@ -1,11 +1,13 @@
 pub mod args;
 
-use crate::commands::{Command, CommitCommand, ConfigCommand, MergeCommand, PrCommand};
+use crate::commands::{
+    Command, CommitCommand, ConfigCommand, InitCommand, MergeCommand, PrCommand,
+};
 use crate::config::Config;
 use crate::cursor_agent::CursorAgent;
 use crate::Commands;
 use anyhow::Result;
-use args::{CommitArgs, CommonArgs, ConfigArgs, MergeArgs, PrArgs};
+use args::{CommitArgs, CommonArgs, ConfigArgs, InitArgs, MergeArgs, PrArgs};
 
 /// Command dispatcher that routes CLI commands to their implementations
 pub struct CommandDispatcher {
@@ -83,6 +85,28 @@ impl CommandDispatcher {
                 let args = ConfigArgs { show, init };
                 let cmd = ConfigCommand::new();
                 cmd.execute(args, &self.agent).await
+            }
+            Commands::Init {
+                language,
+                name,
+                message,
+                no_confirm,
+                dry_run,
+                verbose,
+            } => {
+                let args = InitArgs {
+                    common: CommonArgs {
+                        dry_run,
+                        verbose,
+                        message,
+                    },
+                    language,
+                    name,
+                    no_confirm,
+                };
+                let cmd = InitCommand::new(self.config.commands.init.clone());
+                let resolved_args = cmd.resolve_args(args);
+                cmd.execute(resolved_args, &self.agent).await
             }
         }
     }
