@@ -42,7 +42,7 @@ jobs:
           fi
   # Build binaries for multiple platforms
   build:
-    needs: check-release
+    needs: [check-release, update-versions]
     if: needs.check-release.outputs.should-release == 'true'
     strategy:
       matrix:
@@ -66,6 +66,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.update-versions.outputs.commit-sha || github.sha }}
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -101,9 +103,108 @@ jobs:
           name: ${{ matrix.name }}
           path: ${{ matrix.name }}
           if-no-files-found: error
+  # Update version numbers and changelog
+  update-versions:
+    needs: [check-release]
+    if: needs.check-release.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      commit-sha: ${{ steps.commit-changes.outputs.commit-sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+      
+      - name: Update Cargo.toml version
+        run: |
+          NEW_VERSION="${{ needs.check-release.outputs.new-version }}"
+          echo "Updating Cargo.toml to version $NEW_VERSION"
+          sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
+          echo "Updated Cargo.toml:"
+          grep "^version = " Cargo.toml
+      
+      - name: Update main.rs version
+        run: |
+          NEW_VERSION="${{ needs.check-release.outputs.new-version }}"
+          echo "Updating main.rs to version $NEW_VERSION"
+          sed -i "s/#\[command(version = \".*\")\]/#[command(version = \"$NEW_VERSION\")]/" src/main.rs
+          echo "Updated main.rs:"
+          grep "#\[command(version = " src/main.rs
+      
+      - name: Update CHANGELOG.md
+        run: |
+          NEW_VERSION="${{ needs.check-release.outputs.new-version }}"
+          RELEASE_DATE=$(date +%Y-%m-%d)
+          echo "Updating CHANGELOG.md for version $NEW_VERSION on $RELEASE_DATE"
+          
+          # Create a temporary file for the new changelog
+          cat > temp_changelog.md << EOF
+          # Changelog
+
+          All notable changes to this project will be documented in this file.
+
+          The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+          and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+          ## [Unreleased]
+
+          EOF
+          
+          # Add the content from the current unreleased section and replace it with the new version
+          awk '
+            /^## \[Unreleased\]/ { 
+              in_unreleased = 1
+              next 
+            }
+            /^## \[/ && in_unreleased { 
+              print "## ['"$NEW_VERSION"'] - '"$RELEASE_DATE"'"
+              print ""
+              print unreleased_content
+              in_unreleased = 0
+              print $0
+              next
+            }
+            in_unreleased {
+              if ($0 != "" || unreleased_content != "") {
+                unreleased_content = unreleased_content $0 "\n"
+              }
+              next
+            }
+            { print }
+          ' CHANGELOG.md >> temp_changelog.md
+          
+          # Replace the original changelog
+          mv temp_changelog.md CHANGELOG.md
+          
+          echo "Updated CHANGELOG.md:"
+          head -20 CHANGELOG.md
+      
+      - name: Commit version updates
+        id: commit-changes
+        run: |
+          git add Cargo.toml src/main.rs CHANGELOG.md
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            echo "commit-sha=" >> $GITHUB_OUTPUT
+          else
+            git commit -m "chore: bump version to ${{ needs.check-release.outputs.new-version }}"
+            git push origin main
+            echo "commit-sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+            echo "Committed version updates"
+          fi
+
   # Create the GitHub release
   release:
-    needs: [check-release, build]
+    needs: [check-release, build, update-versions]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -112,6 +213,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ needs.update-versions.outputs.commit-sha || github.sha }}
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
