@@ -1,6 +1,7 @@
 mod cli;
+mod commands;
 mod config;
-mod prompts;
+mod cursor_agent;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -90,15 +91,10 @@ enum Commands {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    // Handle special commands that don't need config loading
-    if let Commands::Config { show, init } = &cli.command {
-        return handle_config_command(*show, *init);
-    }
-
-    // Load configuration
+    // Load configuration (all commands get consistent access)
     let config = config::Config::load()?;
 
-    let (dry_run, verbose) = match &cli.command {
+    let (_dry_run, verbose) = match &cli.command {
         Commands::Commit {
             dry_run, verbose, ..
         } => (*dry_run, *verbose),
@@ -108,39 +104,21 @@ async fn main() -> Result<()> {
         Commands::Merge {
             dry_run, verbose, ..
         } => (*dry_run, *verbose),
-        Commands::Config { .. } => unreachable!("Handled above"),
+        Commands::Config { .. } => (false, false), // Config doesn't use cursor-agent
     };
 
     // Override CLI flags with config values where appropriate
     let effective_verbose = verbose || config.behavior.verbose;
     ensure_cursor_agent_available(effective_verbose)?;
 
-    if dry_run {
-        // Generate prompt for dry-run display
-        let prompts = config.get_prompts();
-        let (command_name, branch, custom_message) = match &cli.command {
-            Commands::Commit { message, .. } => ("commit", None, message.as_deref()),
-            Commands::Pr { message, .. } => ("pr", None, message.as_deref()),
-            Commands::Merge {
-                branch, message, ..
-            } => ("merge", Some(branch.as_str()), message.as_deref()),
-            _ => unreachable!(),
-        };
-        let prompt =
-            prompts::get_prompt_for_command(&prompts, command_name, branch, custom_message);
-
-        println!("🔍 Dry run mode - would execute with prompt:");
-        println!("---");
-        println!("{}", prompt);
-        println!("---");
-        return Ok(());
-    }
+    // Dry run is now handled by individual commands
 
     if effective_verbose {
         println!("🔧 Executing git-ai command...");
     }
 
-    cli::execute_command(&cli.command, &config).await?;
+    let dispatcher = cli::CommandDispatcher::new(config);
+    dispatcher.dispatch(cli.command).await?;
 
     Ok(())
 }
@@ -169,68 +147,6 @@ fn ensure_cursor_agent_available(verbose: bool) -> Result<()> {
     eprintln!("After installation, make sure cursor-agent is in your PATH.");
 
     anyhow::bail!("cursor-agent not found");
-}
-
-/// Handle the config command
-fn handle_config_command(show: bool, init: bool) -> Result<()> {
-    if init {
-        let sample_config = config::Config::create_sample_config()?;
-        println!("# Sample git-ai configuration");
-        println!("# Copy this to ~/.config/git-ai/config.yaml or .git-ai.yaml");
-        println!();
-        println!("{}", sample_config);
-        return Ok(());
-    }
-
-    if show {
-        println!("🔍 git-ai configuration status:");
-        println!();
-
-        // Check for repo-specific config
-        let repo_config_path = std::path::PathBuf::from(".git-ai.yaml");
-        if repo_config_path.exists() {
-            println!("✅ Repository config: .git-ai.yaml");
-        } else {
-            println!("❌ Repository config: .git-ai.yaml (not found)");
-        }
-
-        // Check for user config
-        if let Some(user_config_path) = config::Config::user_config_path() {
-            if user_config_path.exists() {
-                println!("✅ User config: {}", user_config_path.display());
-            } else {
-                println!("❌ User config: {} (not found)", user_config_path.display());
-                if let Some(parent) = user_config_path.parent() {
-                    if !parent.exists() {
-                        println!("   💡 Create directory: mkdir -p {}", parent.display());
-                    }
-                }
-            }
-        } else {
-            println!("❌ User config: Unable to determine config directory");
-        }
-
-        println!();
-        println!(
-            "💡 To create a sample config: git ai config --init > ~/.config/git-ai/config.yaml"
-        );
-
-        return Ok(());
-    }
-
-    // If no flags provided, show help
-    println!("git-ai config management");
-    println!();
-    println!("Options:");
-    println!("  --show  Show current configuration status");
-    println!("  --init  Generate sample configuration");
-    println!();
-    println!("Examples:");
-    println!("  git ai config --show");
-    println!("  git ai config --init > ~/.config/git-ai/config.yaml");
-    println!("  git ai config --init > .git-ai.yaml  # Repository-specific config");
-
-    Ok(())
 }
 
 #[cfg(test)]

@@ -1,4 +1,10 @@
-/// Single commit prompt - handles all commit scenarios
+use crate::cli::args::CommitArgs;
+use crate::commands::Command;
+use crate::config::CommitConfig;
+use crate::cursor_agent::CursorAgent;
+use anyhow::Result;
+
+/// Commit prompt template
 pub const COMMIT_PROMPT: &str =
 "You are operating in a command line interface, performing automated commit generation for a Git repository.
 
@@ -34,3 +40,55 @@ feat(api): add JWT authentication middleware
 fix(ui): correct navbar alignment on mobile
 - adjust CSS grid for better responsiveness
 ";
+
+/// Commit command implementation
+pub struct CommitCommand {
+    config: CommitConfig,
+}
+
+impl CommitCommand {
+    pub fn new(config: CommitConfig) -> Self {
+        Self { config }
+    }
+}
+
+impl Command for CommitCommand {
+    type Args = CommitArgs;
+    type Config = CommitConfig;
+
+    fn prompt_template(&self) -> &str {
+        // Use custom prompt from config, or default
+        self.config.prompt.as_deref().unwrap_or(COMMIT_PROMPT)
+    }
+
+    fn resolve_args(&self, mut args: CommitArgs) -> CommitArgs {
+        // Apply config overrides to args
+        if let Some(no_confirm) = self.config.no_confirm {
+            if !args.no_confirm {
+                // Only override if not explicitly set by CLI
+                args.no_confirm = no_confirm;
+            }
+        }
+        args
+    }
+
+    async fn execute(&self, args: CommitArgs, agent: &CursorAgent) -> Result<()> {
+        // Use the template with custom message if provided
+        let mut prompt = self.prompt_template().to_string();
+
+        if let Some(ref message) = args.common.message {
+            prompt = format!("{}\n\nUser context: {}", prompt, message);
+        }
+
+        if args.common.dry_run {
+            println!("🔍 Dry run mode - would execute with prompt:");
+            println!("---");
+            println!("{}", prompt);
+            println!("---");
+            return Ok(());
+        }
+
+        // Use shared cursor-agent service
+        agent.execute(&prompt, args.no_confirm).await
+    }
+}

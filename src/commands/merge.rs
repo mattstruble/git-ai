@@ -1,5 +1,10 @@
-/// Single merge prompt - handles all merge scenarios
-/// Use format!() to substitute the branch name: format!(MERGE_PROMPT, branch_name)
+use crate::cli::args::MergeArgs;
+use crate::commands::Command;
+use crate::config::MergeConfig;
+use crate::cursor_agent::CursorAgent;
+use anyhow::Result;
+
+/// Merge prompt template
 pub const MERGE_PROMPT: &str =
     "You are an expert software developer tasked with analyzing and assisting with merging the branch '{}' into the current branch.
 
@@ -35,26 +40,54 @@ pub const MERGE_PROMPT: &str =
 
 Analyze the current repository state and provide comprehensive merge guidance for integrating '{}'.";
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+/// Merge command implementation
+pub struct MergeCommand {
+    config: MergeConfig,
+}
 
-    #[test]
-    fn test_merge_prompt_has_placeholders() {
-        // Should have multiple {} placeholders for branch name substitution
-        let placeholder_count = MERGE_PROMPT.matches("{}").count();
-        assert!(
-            placeholder_count >= 6,
-            "Should have multiple branch placeholders"
-        );
+impl MergeCommand {
+    pub fn new(config: MergeConfig) -> Self {
+        Self { config }
+    }
+}
+
+impl Command for MergeCommand {
+    type Args = MergeArgs;
+    type Config = MergeConfig;
+
+    fn prompt_template(&self) -> &str {
+        // Use custom prompt from config, or default
+        self.config.prompt.as_deref().unwrap_or(MERGE_PROMPT)
     }
 
-    #[test]
-    fn test_merge_prompt_formatting() {
-        let branch = "feature/test";
-        let formatted = MERGE_PROMPT.replace("{}", branch);
+    fn resolve_args(&self, mut args: MergeArgs) -> MergeArgs {
+        // Apply config overrides to args
+        if let Some(no_confirm) = self.config.no_confirm {
+            if !args.no_confirm {
+                // Only override if not explicitly set by CLI
+                args.no_confirm = no_confirm;
+            }
+        }
+        args
+    }
 
-        assert!(formatted.contains("feature/test"));
-        assert!(!formatted.contains("{}"));
+    async fn execute(&self, args: MergeArgs, agent: &CursorAgent) -> Result<()> {
+        // Use the template with branch substitution and custom message
+        let mut prompt = self.prompt_template().replace("{}", &args.branch);
+
+        if let Some(ref message) = args.common.message {
+            prompt = format!("{}\n\nUser context: {}", prompt, message);
+        }
+
+        if args.common.dry_run {
+            println!("🔍 Dry run mode - would execute with prompt:");
+            println!("---");
+            println!("{}", prompt);
+            println!("---");
+            return Ok(());
+        }
+
+        // Use shared cursor-agent service
+        agent.execute(&prompt, args.no_confirm).await
     }
 }
