@@ -111,6 +111,49 @@ enum Commands {
         #[arg(short, long)]
         verbose: bool,
     },
+    /// Manage .gitignore file entries
+    Ignore {
+        #[command(subcommand)]
+        action: IgnoreAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum IgnoreAction {
+    /// Add ignore patterns for specified languages/tools
+    Add {
+        /// Languages or tools to add ignore patterns for (e.g., python, node, rust)
+        languages: Vec<String>,
+
+        /// Skip user confirmation prompts
+        #[arg(long)]
+        no_confirm: bool,
+
+        /// Print the prompt without executing cursor-agent
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Show verbose output for debugging
+        #[arg(short, long)]
+        verbose: bool,
+    },
+    /// Remove ignore patterns for specified languages/tools
+    Remove {
+        /// Languages or tools to remove ignore patterns for
+        languages: Vec<String>,
+
+        /// Skip user confirmation prompts
+        #[arg(long)]
+        no_confirm: bool,
+
+        /// Print the prompt without executing cursor-agent
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Show verbose output for debugging
+        #[arg(short, long)]
+        verbose: bool,
+    },
 }
 
 #[tokio::main]
@@ -134,6 +177,14 @@ async fn main() -> Result<()> {
             dry_run, verbose, ..
         } => (*dry_run, *verbose),
         Commands::Config { .. } => (false, false), // Config doesn't use cursor-agent
+        Commands::Ignore { action } => match action {
+            IgnoreAction::Add {
+                dry_run, verbose, ..
+            } => (*dry_run, *verbose),
+            IgnoreAction::Remove {
+                dry_run, verbose, ..
+            } => (*dry_run, *verbose),
+        },
     };
 
     // Override CLI flags with config values where appropriate

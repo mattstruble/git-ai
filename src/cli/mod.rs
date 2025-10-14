@@ -1,13 +1,13 @@
 pub mod args;
 
 use crate::commands::{
-    Command, CommitCommand, ConfigCommand, InitCommand, MergeCommand, PrCommand,
+    Command, CommitCommand, ConfigCommand, IgnoreCommand, InitCommand, MergeCommand, PrCommand,
 };
 use crate::config::Config;
 use crate::cursor_agent::CursorAgent;
-use crate::Commands;
+use crate::{Commands, IgnoreAction};
 use anyhow::Result;
-use args::{CommitArgs, CommonArgs, ConfigArgs, InitArgs, MergeArgs, PrArgs};
+use args::{CommitArgs, CommonArgs, ConfigArgs, IgnoreArgs, InitArgs, MergeArgs, PrArgs};
 
 /// Command dispatcher that routes CLI commands to their implementations
 pub struct CommandDispatcher {
@@ -105,6 +105,33 @@ impl CommandDispatcher {
                     no_confirm,
                 };
                 let cmd = InitCommand::new(self.config.commands.init.clone());
+                let resolved_args = cmd.resolve_args(args);
+                cmd.execute(resolved_args, &self.agent).await
+            }
+            Commands::Ignore { action } => {
+                let (action_str, languages, no_confirm, dry_run, verbose) = match action {
+                    IgnoreAction::Add {
+                        languages,
+                        no_confirm,
+                        dry_run,
+                        verbose,
+                    } => ("add", languages, no_confirm, dry_run, verbose),
+                    IgnoreAction::Remove {
+                        languages,
+                        no_confirm,
+                        dry_run,
+                        verbose,
+                    } => ("remove", languages, no_confirm, dry_run, verbose),
+                };
+
+                let args = IgnoreArgs {
+                    action: action_str.to_string(),
+                    languages,
+                    no_confirm,
+                    dry_run,
+                    verbose,
+                };
+                let cmd = IgnoreCommand::new(self.config.commands.ignore.clone());
                 let resolved_args = cmd.resolve_args(args);
                 cmd.execute(resolved_args, &self.agent).await
             }

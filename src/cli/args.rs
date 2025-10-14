@@ -44,3 +44,14 @@ pub struct InitArgs {
     pub name: Option<String>,
     pub no_confirm: bool,
 }
+
+/// Arguments specific to ignore command
+#[derive(Debug, Clone)]
+pub struct IgnoreArgs {
+    pub action: String, // "add" or "remove"
+    pub languages: Vec<String>,
+    pub no_confirm: bool,
+    pub dry_run: bool,
+    #[allow(dead_code)] // Will be used in future phases
+    pub verbose: bool,
+}

@@ -43,6 +43,9 @@ pub struct CommandConfigs {
 
     #[serde(default)]
     pub init: InitConfig,
+
+    #[serde(default)]
+    pub ignore: IgnoreConfig,
 }
 
 /// Configuration for commit command
@@ -69,6 +72,13 @@ pub struct MergeConfig {
 /// Configuration for init command
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct InitConfig {
+    pub prompt: Option<String>,
+    pub no_confirm: Option<bool>,
+}
+
+/// Configuration for ignore command
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct IgnoreConfig {
     pub prompt: Option<String>,
     pub no_confirm: Option<bool>,
 }
@@ -147,6 +157,12 @@ impl Config {
                 init: InitConfig {
                     prompt: Some(
                         "Custom init prompt (optional - overrides built-in prompt)".to_string(),
+                    ),
+                    no_confirm: Some(false),
+                },
+                ignore: IgnoreConfig {
+                    prompt: Some(
+                        "Custom ignore prompt (optional - overrides built-in prompt)".to_string(),
                     ),
                     no_confirm: Some(false),
                 },
