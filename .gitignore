@@ -21,3 +21,96 @@ target
 #.idea/
 
 node_modules
+
+# === macOS ===
+# General
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon must end with two \r
+Icon
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+# === End macOS ===
+
+# === Neovim ===
+# Swap files
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+
+# Session files
+Session.vim
+Sessionx.vim
+
+# Temporary files
+.netrwhist
+*~
+
+# Auto-generated tag files
+tags
+
+# Persistent undo
+[._]*.un~
+
+# Local config
+.nvimrc
+.exrc
+# === End Neovim ===
+
+# === Environment Files ===
+# Environment variables
+.env
+.env.local
+.env.production.local
+.env.development.local
+.env.test.local
+
+# Virtual environments
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Python virtual environments
+.Python
+pyvenv.cfg
+pip-selfcheck.json
+
+# dotenv
+*.env
+!.env.example
+!.env.template
+!.env.sample
+# === End Environment Files ===
+
+# === direnv ===
+# direnv environment files
+.envrc
+.direnv/
+
+# direnv local overrides
+.envrc.local
+# === End direnv ===
