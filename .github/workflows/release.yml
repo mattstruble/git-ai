@@ -261,7 +261,7 @@ jobs:
           custom_release_rules: |
             feat:minor,fix:patch,docs:patch,style:patch,refactor:patch,perf:patch,test:patch
       - name: Upload Release Assets
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.create_release.outputs.new_tag }}
           name: Release ${{ steps.create_release.outputs.new_tag }}
