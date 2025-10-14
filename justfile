@@ -1,6 +1,9 @@
 default:
     @just --list
 
+lint:
+  pre-commit install
+  pre-commit run --all-files
 
 check:
     cargo check

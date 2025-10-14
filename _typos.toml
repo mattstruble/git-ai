@@ -1,0 +1,38 @@
+# Configuration for typos spell checker
+# See https://github.com/crate-ci/typos
+
+[default]
+# Don't check binary files
+binary = false
+
+[default.extend-words]
+# Project-specific words that should not be flagged as typos
+mestruble = "mestruble"
+ai = "ai"
+git = "git"
+AI = "AI"
+CLI = "CLI"
+API = "API"
+# Add more project-specific terms as needed
+
+[type.rust]
+extend-glob = ["*.rs"]
+
+[type.toml]
+extend-glob = ["*.toml"]
+
+[type.yaml]
+extend-glob = ["*.yml", "*.yaml"]
+
+[type.markdown]
+extend-glob = ["*.md"]
+
+[files]
+# Paths to ignore
+extend-exclude = [
+    "target/",
+    "Cargo.lock",
+    ".git/",
+    "*.min.js",
+    "*.min.css"
+]
