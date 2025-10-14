@@ -14,9 +14,6 @@ pub struct Config {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BehaviorConfig {
-    #[serde(default = "default_auto_alias")]
-    pub auto_register_git_alias: bool,
-
     #[serde(default = "default_confirm_install")]
     pub confirm_cursor_agent_install: bool,
 
@@ -27,16 +24,12 @@ pub struct BehaviorConfig {
 impl Default for BehaviorConfig {
     fn default() -> Self {
         Self {
-            auto_register_git_alias: default_auto_alias(),
             confirm_cursor_agent_install: default_confirm_install(),
             verbose: default_verbose(),
         }
     }
 }
 
-fn default_auto_alias() -> bool {
-    true
-}
 fn default_confirm_install() -> bool {
     true
 }
@@ -103,7 +96,6 @@ impl Config {
                 ),
             },
             behavior: BehaviorConfig {
-                auto_register_git_alias: true,
                 confirm_cursor_agent_install: true,
                 verbose: false,
             },
@@ -128,7 +120,6 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = Config::default();
-        assert!(config.behavior.auto_register_git_alias);
         assert!(config.behavior.confirm_cursor_agent_install);
         assert!(!config.behavior.verbose);
     }
@@ -138,7 +129,7 @@ mod tests {
         let sample = Config::create_sample_config().unwrap();
         assert!(sample.contains("prompts:"));
         assert!(sample.contains("behavior:"));
-        assert!(sample.contains("auto_register_git_alias"));
+        assert!(sample.contains("confirm_cursor_agent_install"));
     }
 
     #[test]
@@ -148,7 +139,6 @@ mod tests {
 
         let test_config = r#"
 behavior:
-  auto_register_git_alias: false
   verbose: true
 
 prompts:
@@ -158,7 +148,6 @@ prompts:
         fs::write(&config_path, test_config).unwrap();
 
         let config = Config::load_from_path(&config_path).unwrap();
-        assert!(!config.behavior.auto_register_git_alias);
         assert!(config.behavior.verbose);
         assert_eq!(
             config.prompts.commit.as_deref(),

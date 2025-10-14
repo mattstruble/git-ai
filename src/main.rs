@@ -142,11 +142,6 @@ async fn main() -> Result<()> {
     // Override CLI flags with config values where appropriate
     let effective_verbose = verbose || config.behavior.verbose;
     let effective_no_confirm = no_confirm || !config.behavior.confirm_cursor_agent_install;
-    let effective_auto_alias = config.behavior.auto_register_git_alias;
-
-    if effective_auto_alias {
-        register_git_alias(effective_no_confirm)?;
-    }
     ensure_cursor_agent(false, effective_no_confirm, effective_verbose).await?;
 
     if dry_run {
@@ -179,46 +174,6 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// Register git alias if not already present
-fn register_git_alias(no_confirm: bool) -> Result<()> {
-    let output = StdCommand::new("git")
-        .args(["config", "--global", "--get", "alias.ai"])
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .context("Failed to check git alias")?;
-
-    if !output.success() {
-        if !no_confirm {
-            println!("⚠️  git-ai would like to register a global git alias 'git ai'");
-            println!("   This will run: git config --global alias.ai '!git-ai'");
-            print!("   Do you want to continue? [y/N]: ");
-            std::io::stdout().flush()?;
-
-            let mut input = String::new();
-            std::io::stdin().read_line(&mut input)?;
-
-            let response = input.trim().to_lowercase();
-            if response != "y" && response != "yes" {
-                println!(
-                    "❌ Git alias registration cancelled. You can still use 'git-ai' directly."
-                );
-                return Ok(());
-            }
-        }
-
-        println!("🔧 Registering 'git ai' alias...");
-
-        StdCommand::new("git")
-            .args(["config", "--global", "alias.ai", "!git-ai"])
-            .status()
-            .context("Failed to register git alias")?;
-
-        println!("✅ Alias added: you can now use 'git ai <command>'");
-    }
-
-    Ok(())
-}
 
 /// Ensure cursor-agent is installed with security measures
 async fn ensure_cursor_agent(force_reinstall: bool, no_confirm: bool, verbose: bool) -> Result<()> {
@@ -676,7 +631,7 @@ mod tests {
         assert!(!verbose);
     }
 
-    // Note: Testing register_git_alias and ensure_cursor_agent would require mocking
+    // Note: Testing ensure_cursor_agent would require mocking
     // std::process::Command and reqwest::Client, which is complex but doable with
     // dependency injection or test-specific implementations
 
