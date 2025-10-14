@@ -153,6 +153,13 @@ sudo nixos-rebuild switch --flake .
 home-manager switch --flake .
 ```
 
+### Using Homebrew
+
+```bash
+brew tap mattstruble/formulae
+brew install git-ai
+```
+
 ### Using Cargo
 
 ```bash
@@ -177,11 +184,6 @@ export PATH="$HOME/.local/bin:$PATH"
 ## Prerequisites
 
 Before using `git-ai`, you need to have `cursor-agent` installed on your system:
-
-```bash
-# Install cursor-agent (visit cursor.sh for the latest installation instructions)
-# The tool will prompt you with installation instructions if cursor-agent is not found
-```
 
 ## Usage
 

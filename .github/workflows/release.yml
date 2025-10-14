@@ -277,7 +277,8 @@ jobs:
 
             ### Homebrew (macOS)
             ```bash
-            brew install mattstruble/git-ai/git-ai
+            brew tap mattstruble/formulae
+            brew install git-ai
             ```
 
             ### Nix
