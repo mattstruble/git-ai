@@ -28,7 +28,7 @@ pub async fn execute_command(command: &Commands, config: &Config, no_confirm: bo
 /// Run cursor-agent with the given prompt
 async fn run_cursor_agent(prompt: &str, no_confirm: bool) -> Result<()> {
     let mut cmd = StdCommand::new("cursor-agent");
-    cmd.args(["-p", prompt]);
+    cmd.args(["prompt", prompt]);
 
     if no_confirm {
         cmd.arg("--force");
