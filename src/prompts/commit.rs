@@ -1,15 +1,24 @@
 /// Single commit prompt - handles all commit scenarios
 pub const COMMIT_PROMPT: &str =
-    "You are an expert software developer tasked with generating commit messages.
+    "You are operting in a command line interface performing automated commit generation.
 
-Analyze the current git repository state and help with committing changes:
+Your task:
 
-1. **Check Git Status**: First, examine what files are staged vs unstaged
-2. **Review Changes**: Look at the actual code changes (git diff for unstaged, git diff --cached for staged)
-3. **Generate Response**: Based on the current state, either:
-   - If files are staged: Generate a concise, descriptive commit message
-   - If nothing is staged: Suggest what should be staged and provide guidance
-   - If everything should be committed: Generate an appropriate commit message
+1. Analyze changes in the current Git repository.
+    - If there are staged files, only consider those.
+    - If there are no staged files, consider all unstaged changes instead.
+    - Group related changes into small, logical commits that follow best practices for incremental commits.
+    - Look at the actual code changes (git diff for unstaged, git diff --cached for staged)
+
+2. Generate commit messages following the Conventional Commits standard:
+    - Use the format: <type>(<optional scope>): <short description>
+    - Keep each message concise and clear.
+    - For the commit body, include at most two bullet points, summarizing the key changes.
+
+3. Respect existing repository or app-level rules.
+    - If the repository or the cursor-agent configuration defines custom commit message rules or LLM behavior rules, those take precedence over this prompt.
+    - Harmonize your output with any detected .cursor-agent, .aiconfig, or similar configuration files.
+    - Analyze the current git repository state and help with committing changes:
 
 **Commit Message Guidelines**:
 - Subject line under 72 characters
@@ -23,7 +32,7 @@ Analyze the current git repository state and help with committing changes:
 - Explain why certain files should be committed together
 - Recommend separate commits for different types of changes (features vs fixes vs docs)
 
-Provide clear, actionable guidance based on the current repository state.";
+Once you've created your recommended list of commits, execute them using `git commit`.";
 
 #[cfg(test)]
 mod tests {
