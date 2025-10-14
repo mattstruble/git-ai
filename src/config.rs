@@ -14,9 +14,6 @@ pub struct Config {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BehaviorConfig {
-    #[serde(default = "default_confirm_install")]
-    pub confirm_cursor_agent_install: bool,
-
     #[serde(default = "default_verbose")]
     pub verbose: bool,
 }
@@ -24,15 +21,11 @@ pub struct BehaviorConfig {
 impl Default for BehaviorConfig {
     fn default() -> Self {
         Self {
-            confirm_cursor_agent_install: default_confirm_install(),
             verbose: default_verbose(),
         }
     }
 }
 
-fn default_confirm_install() -> bool {
-    true
-}
 fn default_verbose() -> bool {
     false
 }
@@ -95,10 +88,7 @@ impl Config {
                     "Generate a merge summary and conflict resolution guidance.".to_string(),
                 ),
             },
-            behavior: BehaviorConfig {
-                confirm_cursor_agent_install: true,
-                verbose: false,
-            },
+            behavior: BehaviorConfig { verbose: false },
         };
 
         serde_yaml::to_string(&sample).context("Failed to serialize sample configuration")
@@ -120,7 +110,6 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = Config::default();
-        assert!(config.behavior.confirm_cursor_agent_install);
         assert!(!config.behavior.verbose);
     }
 
@@ -129,7 +118,7 @@ mod tests {
         let sample = Config::create_sample_config().unwrap();
         assert!(sample.contains("prompts:"));
         assert!(sample.contains("behavior:"));
-        assert!(sample.contains("confirm_cursor_agent_install"));
+        assert!(sample.contains("verbose"));
     }
 
     #[test]

@@ -7,7 +7,6 @@ binary = false
 
 [default.extend-words]
 # Project-specific words that should not be flagged as typos
-mestruble = "mestruble"
 ai = "ai"
 git = "git"
 AI = "AI"

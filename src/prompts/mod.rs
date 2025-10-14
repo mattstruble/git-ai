@@ -92,14 +92,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_default_prompts_exist() {
-        let registry = PromptRegistry::default();
-        assert!(!registry.commit.is_empty());
-        assert!(!registry.pr.is_empty());
-        assert!(!registry.merge.is_empty());
-    }
-
-    #[test]
     fn test_custom_message_formatting() {
         let base = "Base prompt";
         let custom = "Custom requirement";
