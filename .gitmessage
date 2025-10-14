@@ -1,5 +1,5 @@
 # Conventional Commit Template
-# 
+#
 # Format: <type>[optional scope]: <description>
 #
 # [optional body]
@@ -27,5 +27,5 @@
 # Breaking changes: Add "BREAKING CHANGE:" in footer or add "!" after type
 #   feat!: change merge command to require target branch
 #   fix: resolve issue with staging detection
-#   
+#
 #   BREAKING CHANGE: merge command now requires a target branch argument

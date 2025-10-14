@@ -142,6 +142,7 @@ in
 ```
 
 Then rebuild your system:
+
 ```bash
 # NixOS
 sudo nixos-rebuild switch --flake .
@@ -205,7 +206,7 @@ git ai merge feature/api-refactor --force -m "Focus on database migration confli
 
 ## How it Works
 
-1. **Git Plugin**: Works as a native git plugin 
+1. **Git Plugin**: Works as a native git plugin
 2. **Cursor-agent Setup**: Automatically downloads and installs cursor-agent if not present
 3. **Context Generation**: Creates appropriate prompts based on the selected command
 4. **AI Processing**: Calls cursor-agent with the generated prompt for AI assistance

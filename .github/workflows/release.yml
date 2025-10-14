@@ -30,26 +30,26 @@ jobs:
           default_bump: false
           custom_release_rules: |
             feat:minor,fix:patch,docs:patch,style:patch,refactor:patch,perf:patch,test:patch
-      
-      - name: Debug version outputs  
+
+      - name: Debug version outputs
         run: |
           echo "Debug: All step outputs:"
           echo "new_tag: '${{ steps.version.outputs.new_tag }}'"
           echo "new_version: '${{ steps.version.outputs.new_version }}'"
           echo "previous_tag: '${{ steps.version.outputs.previous_tag }}'"
           echo "changelog: '${{ steps.version.outputs.changelog }}'"
-      
+
       - name: Set release flag
         id: set-release
         run: |
           # The action outputs new_tag (with v prefix) not new_version
           NEW_TAG="${{ steps.version.outputs.new_tag }}"
           NEW_VERSION="${{ steps.version.outputs.new_version }}"
-          
+
           echo "Raw NEW_TAG: '$NEW_TAG'"
           echo "Raw NEW_VERSION: '$NEW_VERSION'"
-          
-          # Use new_tag and strip 'v' prefix if present, fallback to new_version  
+
+          # Use new_tag and strip 'v' prefix if present, fallback to new_version
           if [ -n "$NEW_TAG" ]; then
             VERSION=${NEW_TAG#v}  # Remove 'v' prefix if present
             echo "should-release=true" >> $GITHUB_OUTPUT
@@ -143,12 +143,12 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Setup Git
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-      
+
       - name: Update Cargo.toml version
         run: |
           NEW_VERSION="${{ needs.check-release.outputs.new-version }}"
@@ -156,7 +156,7 @@ jobs:
           sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
           echo "Updated Cargo.toml:"
           grep "^version = " Cargo.toml
-      
+
       - name: Update main.rs version
         run: |
           NEW_VERSION="${{ needs.check-release.outputs.new-version }}"
@@ -164,13 +164,13 @@ jobs:
           sed -i "s/#\[command(version = \".*\")\]/#[command(version = \"$NEW_VERSION\")]/" src/main.rs
           echo "Updated main.rs:"
           grep "#\[command(version = " src/main.rs
-      
+
       - name: Update CHANGELOG.md
         run: |
           NEW_VERSION="${{ needs.check-release.outputs.new-version }}"
           RELEASE_DATE=$(date +%Y-%m-%d)
           echo "Updating CHANGELOG.md for version $NEW_VERSION on $RELEASE_DATE"
-          
+
           # Create a temporary file for the new changelog
           cat > temp_changelog.md << EOF
           # Changelog
@@ -183,14 +183,14 @@ jobs:
           ## [Unreleased]
 
           EOF
-          
+
           # Add the content from the current unreleased section and replace it with the new version
           awk '
-            /^## \[Unreleased\]/ { 
+            /^## \[Unreleased\]/ {
               in_unreleased = 1
-              next 
+              next
             }
-            /^## \[/ && in_unreleased { 
+            /^## \[/ && in_unreleased {
               print "## ['"$NEW_VERSION"'] - '"$RELEASE_DATE"'"
               print ""
               print unreleased_content
@@ -206,13 +206,13 @@ jobs:
             }
             { print }
           ' CHANGELOG.md >> temp_changelog.md
-          
+
           # Replace the original changelog
           mv temp_changelog.md CHANGELOG.md
-          
+
           echo "Updated CHANGELOG.md:"
           head -20 CHANGELOG.md
-      
+
       - name: Commit version updates
         id: commit-changes
         run: |
