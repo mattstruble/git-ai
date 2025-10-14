@@ -174,7 +174,6 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-
 /// Ensure cursor-agent is installed with security measures
 async fn ensure_cursor_agent(force_reinstall: bool, no_confirm: bool, verbose: bool) -> Result<()> {
     // Check if cursor-agent exists and reinstall is not forced
