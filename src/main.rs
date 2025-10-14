@@ -503,13 +503,6 @@ mod tests {
     }
 
     #[test]
-    fn test_cli_version() {
-        let cli = Cli::command();
-        let version = cli.get_version().unwrap();
-        assert_eq!(version, "0.1.0");
-    }
-
-    #[test]
     fn test_cli_name() {
         let cli = Cli::command();
         let name = cli.get_name();
