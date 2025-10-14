@@ -249,6 +249,7 @@ async fn ensure_cursor_agent(force_reinstall: bool, no_confirm: bool, verbose: b
     }
 
     // TODO: Add checksum verification when checksum is available
+    #[allow(clippy::const_is_empty)]
     if !CURSOR_INSTALL_CHECKSUM.is_empty() {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
