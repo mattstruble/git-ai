@@ -11,7 +11,9 @@ AI-assisted git workflow with cursor-agent integration
 - **Smart Commit Messages**: Generate concise, descriptive commit messages from your git diff
 - **PR Descriptions**: Create professional pull request descriptions summarizing recent changes
 - **Merge Summaries**: Get AI assistance with merge conflict resolution and summary messages
-- **Automatic Setup**: Automatically installs cursor-agent
+- **Project Initialization**: AI-guided setup of new projects with language-specific structure and tooling
+- **Gitignore Management**: Intelligent .gitignore file management with structured language sections
+- **Configuration Support**: Per-command configuration with override capabilities
 - **Cross-platform**: Works on macOS, Linux, and other Unix-like systems
 
 ## Installation
@@ -172,6 +174,15 @@ cp target/release/git-ai ~/.local/bin/  # or any directory in your PATH
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
+## Prerequisites
+
+Before using `git-ai`, you need to have `cursor-agent` installed on your system:
+
+```bash
+# Install cursor-agent (visit cursor.sh for the latest installation instructions)
+# The tool will prompt you with installation instructions if cursor-agent is not found
+```
+
 ## Usage
 
 Since `git-ai` is installed as a git plugin, you can use either:
@@ -184,32 +195,122 @@ git ai <command> [options]
 
 ### Commands
 
-- `commit` - Generate AI-assisted commit message
-- `pr` - Generate AI-assisted PR description
+- `commit` - Generate AI-assisted commit message from current changes
+- `pr` - Generate AI-assisted pull request description
 - `merge <branch>` - Generate AI-assisted merge summary for a specific branch
+- `init` - Initialize a new project with AI-guided setup and structure
+- `ignore` - Manage .gitignore file with AI assistance
+- `config` - Show or initialize configuration files
 
 ### Examples
+
+#### Commit Messages
 
 ```bash
 # Generate a commit message from current changes
 git ai commit
 
-# Create a PR description with custom context
-git ai pr -m "Summarize the refactor changes for PR body"
+# Create commit message with custom context
+git ai commit -m "Focus on the security improvements in this change"
 
+# Preview the prompt without executing
+git ai commit --dry-run
+```
+
+#### Pull Request Descriptions
+
+```bash
+# Generate a PR description
+git ai pr
+
+# Create PR description with custom guidance
+git ai pr -m "Summarize the refactor changes for PR body"
+```
+
+#### Merge Assistance
+
+```bash
 # Get merge assistance for a specific branch
 git ai merge feature/new-auth
 
-# Get merge assistance with custom context and force flag
-git ai merge feature/api-refactor --force -m "Focus on database migration conflicts"
+# Get merge assistance with custom context
+git ai merge feature/api-refactor -m "Focus on database migration conflicts"
+```
+
+#### Project Initialization
+
+```bash
+# Initialize a new Python project
+git ai init --language python --name myproject
+
+# Initialize with AI guidance (interactive)
+git ai init
+
+# Preview initialization prompts
+git ai init --language rust --dry-run
+```
+
+#### Gitignore Management
+
+```bash
+# Add ignore patterns for Python and Node.js
+git ai ignore add python node
+
+# Remove Python-specific ignore patterns
+git ai ignore remove python
+
+# Preview changes without applying
+git ai ignore add rust --dry-run
+```
+
+#### Configuration
+
+```bash
+# Show current configuration
+git ai config --show
+
+# Generate sample configuration file
+git ai config --init
 ```
 
 ## How it Works
 
-1. **Git Plugin**: Works as a native git plugin
-2. **Cursor-agent Setup**: Automatically downloads and installs cursor-agent if not present
-3. **Context Generation**: Creates appropriate prompts based on the selected command
-4. **AI Processing**: Calls cursor-agent with the generated prompt for AI assistance
+1. **Git Plugin**: Works as a native git plugin with `git ai` command integration
+2. **Cursor-agent Integration**: Requires cursor-agent to be pre-installed on your system
+3. **Context Generation**: Creates intelligent, context-aware prompts based on the selected command
+4. **AI Processing**: Passes structured prompts to cursor-agent for AI-powered assistance
+5. **Configuration**: Supports per-command configuration with user overrides
+6. **Dry Run Support**: Preview prompts and changes before execution
+
+## Configuration
+
+`git-ai` supports flexible configuration through YAML files:
+
+- **Repository-specific**: `.git-ai.yaml` in your project root
+- **User-specific**: `~/.config/git-ai/config.yaml`
+
+Generate a sample configuration:
+
+```bash
+git ai config --init
+```
+
+Example configuration:
+
+```yaml
+behavior:
+  verbose: false
+
+commands:
+  commit:
+    prompt: "Custom commit prompt override"
+    no_confirm: false
+  init:
+    prompt: "Custom initialization prompt"
+    no_confirm: false
+  ignore:
+    no_confirm: true # Skip confirmation for ignore operations
+```
 
 ## License
 
