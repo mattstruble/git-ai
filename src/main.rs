@@ -14,7 +14,7 @@ const CURSOR_INSTALL_CHECKSUM: &str = ""; // TODO: Add actual checksum when avai
 #[derive(Parser)]
 #[command(name = "git-ai")]
 #[command(about = "AI-assisted git workflow with cursor-agent")]
-#[command(version = "0.4.4")]
+#[command(version = "0.4.5")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
