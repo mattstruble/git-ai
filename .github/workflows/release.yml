@@ -13,9 +13,9 @@ jobs:
   check-release:
     runs-on: ubuntu-latest
     outputs:
-      should-release: ${{ steps.check-bump.outputs.should-release }}
-      new-version: ${{ steps.check-bump.outputs.new-version }}
-      new-tag: ${{ steps.check-bump.outputs.new-tag }}
+      should-release: ${{ steps.final-outputs.outputs.should-release }}
+      new-version: ${{ steps.final-outputs.outputs.new-version }}
+      new-tag: ${{ steps.final-outputs.outputs.new-tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -28,24 +28,57 @@ jobs:
           sudo mv cog /usr/local/bin/
           cog --version
 
+      - name: Check conventional commits
+        id: check-commits
+        run: |
+          # First check if we have any conventional commits since the latest tag
+          if ! cog check --from-latest-tag 2>/dev/null; then
+            echo "❌ Conventional commit check failed or no commits since latest tag"
+            echo "has-commits=false" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Conventional commits found since latest tag"
+            echo "has-commits=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Check if bump needed
         id: check-bump
+        if: steps.check-commits.outputs.has-commits == 'true'
         run: |
-          # Check what version would be bumped to
-          if cog bump --dry-run 2>/dev/null; then
-            NEW_VERSION=$(cog bump --dry-run 2>/dev/null | grep -o "v[0-9]\+\.[0-9]\+\.[0-9]\+" | head -1)
+          # Check what version would be bumped to using cocogitto
+          VERSION_OUTPUT=$(cog bump --dry-run 2>&1 || echo "NO_BUMP_NEEDED")
+
+          echo "Cog bump output:"
+          echo "$VERSION_OUTPUT"
+
+          if echo "$VERSION_OUTPUT" | grep -q "No conventional commit found\|NO_BUMP_NEEDED"; then
+            echo "should-release=false" >> $GITHUB_OUTPUT
+            echo "No version bump needed - no relevant conventional commits found"
+          else
+            # Try to extract version from output (cocogitto outputs "v1.2.3" format)
+            NEW_VERSION=$(echo "$VERSION_OUTPUT" | grep -o "v[0-9]\+\.[0-9]\+\.[0-9]\+" | head -1)
             if [ -n "$NEW_VERSION" ]; then
               echo "should-release=true" >> $GITHUB_OUTPUT
-              echo "new-version=${NEW_VERSION#v}" >> $GITHUB_OUTPUT
+              echo "new-version=${NEW_VERSION#v}" >> $GITHUB_OUTPUT  # Remove 'v' prefix
               echo "new-tag=$NEW_VERSION" >> $GITHUB_OUTPUT
-              echo "Release should be created for version $NEW_VERSION"
+              echo "✅ Release should be created for version $NEW_VERSION"
             else
               echo "should-release=false" >> $GITHUB_OUTPUT
-              echo "No version bump needed"
+              echo "Could not determine new version from cog output"
             fi
-          else
+          fi
+
+      - name: Set final outputs
+        id: final-outputs
+        run: |
+          # Set final outputs based on previous steps
+          if [ "${{ steps.check-commits.outputs.has-commits }}" != "true" ]; then
             echo "should-release=false" >> $GITHUB_OUTPUT
-            echo "No conventional commits found that require a version bump"
+            echo "new-version=" >> $GITHUB_OUTPUT
+            echo "new-tag=" >> $GITHUB_OUTPUT
+          else
+            echo "should-release=${{ steps.check-bump.outputs.should-release || 'false' }}" >> $GITHUB_OUTPUT
+            echo "new-version=${{ steps.check-bump.outputs.new-version || '' }}" >> $GITHUB_OUTPUT
+            echo "new-tag=${{ steps.check-bump.outputs.new-tag || '' }}" >> $GITHUB_OUTPUT
           fi
   # Build binaries for multiple platforms
   build:
@@ -118,8 +151,8 @@ jobs:
     permissions:
       contents: write
     outputs:
-      commit-sha: ${{ steps.cog-bump.outputs.commit-sha }}
-      changelog: ${{ steps.get-changelog.outputs.changelog }}
+      commit-sha: ${{ steps.cog-release.outputs.commit-sha }}
+      version: ${{ steps.cog-release.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -127,53 +160,38 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Git
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-
-      - name: Install cocogitto
-        run: |
-          curl -L https://github.com/cocogitto/cocogitto/releases/latest/download/cog-linux-x86_64.tar.gz | tar xz
-          sudo mv cog /usr/local/bin/
-          cog --version
-
       - name: Update Cargo.toml version manually (pre-bump)
         run: |
           NEW_VERSION="${{ needs.check-release.outputs.new-version }}"
-          echo "Updating Cargo.toml to version $NEW_VERSION"
-          sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
+          if [ -n "$NEW_VERSION" ]; then
+            echo "Updating Cargo.toml to version $NEW_VERSION"
+            sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
+          fi
 
       - name: Update main.rs version manually (pre-bump)
         run: |
           NEW_VERSION="${{ needs.check-release.outputs.new-version }}"
-          echo "Updating main.rs to version $NEW_VERSION"
-          sed -i "s/#\[command(version = \".*\")\]/#[command(version = \"$NEW_VERSION\")]/" src/main.rs
+          if [ -n "$NEW_VERSION" ]; then
+            echo "Updating main.rs to version $NEW_VERSION"
+            sed -i "s/#\[command(version = \".*\")\]/#[command(version = \"$NEW_VERSION\")]/" src/main.rs
+          fi
 
-      - name: Run cog bump to create tag and update changelog
-        id: cog-bump
+      - name: Commit version file updates
         run: |
-          # Commit the Cargo.toml and main.rs changes first
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add Cargo.toml src/main.rs
-          git commit -m "chore: update version files to ${{ needs.check-release.outputs.new-version }}"
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: update version files"
+          fi
 
-          # Run cog bump to create the tag and update changelog
-          cog bump --auto
-
-          # Push changes
-          git push origin main --tags
-          echo "commit-sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
-          echo "Version bumped and tagged successfully"
-
-      - name: Get generated changelog
-        id: get-changelog
-        run: |
-          # Extract the changelog for this version
-          NEW_VERSION="${{ needs.check-release.outputs.new-version }}"
-          CHANGELOG_CONTENT=$(cog changelog --at "v$NEW_VERSION" --template default)
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+      - name: Release with cocogitto
+        id: cog-release
+        uses: cocogitto/cocogitto-action@v3
+        with:
+          release: true
+          git-user: "github-actions[bot]"
+          git-user-email: "github-actions[bot]@users.noreply.github.com"
 
   # Create the GitHub release
   release:
@@ -201,15 +219,37 @@ jobs:
           cd release
           sha256sum * > checksums.txt
           cat checksums.txt
+      - name: Get latest tag for release
+        id: get-tag
+        run: |
+          # The cocogitto action should have created a tag, get the latest one
+          LATEST_TAG=$(git describe --tags --abbrev=0)
+          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Using tag: $LATEST_TAG"
+
+      - name: Generate changelog for release
+        id: changelog
+        run: |
+          # Install cocogitto to generate changelog
+          curl -L https://github.com/cocogitto/cocogitto/releases/latest/download/cog-linux-x86_64.tar.gz | tar xz
+          sudo mv cog /usr/local/bin/
+
+          # Generate changelog for the latest version
+          LATEST_TAG="${{ steps.get-tag.outputs.tag }}"
+          CHANGELOG_CONTENT=$(cog changelog --at "$LATEST_TAG" --template default || echo "Release $LATEST_TAG")
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.check-release.outputs.new-tag }}
-          name: Release ${{ needs.check-release.outputs.new-tag }}
+          tag_name: ${{ steps.get-tag.outputs.tag }}
+          name: Release ${{ steps.get-tag.outputs.tag }}
           body: |
             ## Changes
 
-            ${{ needs.update-versions.outputs.changelog }}
+            ${{ steps.changelog.outputs.changelog }}
 
             ## Installation
 
