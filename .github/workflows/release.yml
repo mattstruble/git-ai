@@ -1,16 +1,13 @@
-name: Optimized Release
+name: Release
 on:
   push:
     branches: [main]
   workflow_dispatch:
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
 env:
   CARGO_TERM_COLOR: always
-
 jobs:
   # 🔍 Detect if release is needed using cocogitto
   detect-release:
@@ -24,14 +21,12 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-
       - name: Check if release needed
         id: check
         uses: cocogitto/cocogitto-action@v3
         with:
           dry-run: true
         continue-on-error: true
-
       - name: Set release outputs
         id: set-outputs
         run: |
@@ -46,7 +41,6 @@ jobs:
             echo "tag=" >> $GITHUB_OUTPUT
             echo "ℹ️ No release needed"
           fi
-
   # 🏗️ Build artifacts in parallel (no dependency on release creation)
   build-artifacts:
     needs: [detect-release]
@@ -73,19 +67,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-
       - name: Setup cross-compilation (Linux ARM64)
         if: matrix.target == 'aarch64-linux-gnu'
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
           echo "CARGO_TARGET_AARCH64_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-
       - name: Cache cargo dependencies
         uses: actions/cache@v4
         with:
@@ -94,28 +85,23 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
           key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
       - name: Build optimized binary
         run: cargo build --release --target ${{ matrix.target }}
-
       - name: Prepare binary (Unix)
         if: matrix.os != 'windows-latest'
         run: |
           cp target/${{ matrix.target }}/release/git-ai ${{ matrix.name }}
           chmod +x ${{ matrix.name }}
-
       - name: Prepare binary (Windows)
         if: matrix.os == 'windows-latest'
         run: |
           cp target/${{ matrix.target }}/release/git-ai.exe ${{ matrix.name }}
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
           path: ${{ matrix.name }}
           if-no-files-found: error
-
   # 🚀 Create release using cocogitto automation (parallel with build)
   create-release:
     needs: [detect-release]
@@ -131,10 +117,8 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Install cargo-edit for hooks
         run: cargo install cargo-edit
-
       - name: Create release with cocogitto
         id: release
         uses: cocogitto/cocogitto-action@v3
@@ -142,14 +126,12 @@ jobs:
           release: true
           git-user: "github-actions[bot]"
           git-user-email: "github-actions[bot]@users.noreply.github.com"
-
       - name: Get created tag
         id: get-tag
         run: |
           TAG=$(git describe --tags --abbrev=0)
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "✅ Created release tag: $TAG"
-
   # 📦 Publish GitHub release with artifacts
   publish-release:
     needs: [detect-release, build-artifacts, create-release]
@@ -159,12 +141,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
       - name: Download all artifacts
         uses: actions/download-artifact@v5
         with:
           path: artifacts
-
       - name: Prepare release assets
         run: |
           mkdir -p release
@@ -172,7 +152,6 @@ jobs:
           cd release
           sha256sum * > checksums.txt
           ls -la
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
