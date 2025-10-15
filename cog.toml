@@ -29,4 +29,3 @@ build = { changelog_title = "Build System", bump = "none" }
 # Disable git hooks by default - can be enabled with `cog install-hook`
 pre_push = false
 pre_commit = false
-commit_msg = false
