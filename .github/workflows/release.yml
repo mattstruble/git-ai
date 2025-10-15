@@ -21,21 +21,17 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-
       - name: Fetch all tags
         run: |
           git fetch --tags --force
           echo "Available tags:"
           git tag | tail -5
-
       - name: Check if release needed and get version
         id: release-check
         continue-on-error: true
         uses: cocogitto/cocogitto-action@v3
         with:
           dry-run: true
-          release: true
-
       - name: Set final outputs
         id: final-outputs
         run: |
@@ -53,7 +49,7 @@ jobs:
           fi
   # Build binaries for multiple platforms
   build:
-    needs: [check-release, update-versions]
+    needs: [check-release, create-release]
     if: needs.check-release.outputs.should-release == 'true'
     strategy:
       matrix:
@@ -78,7 +74,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          ref: ${{ needs.update-versions.outputs.commit-sha || github.sha }}
+          ref: ${{ github.sha }}
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -114,17 +110,16 @@ jobs:
           name: ${{ matrix.name }}
           path: ${{ matrix.name }}
           if-no-files-found: error
-  # Use cocogitto to bump version and update changelog
-  update-versions:
+  # Create release using cocogitto
+  create-release:
     needs: [check-release]
     if: needs.check-release.outputs.should-release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     outputs:
-      commit-sha: ${{ steps.cog-release.outputs.commit-sha }}
-      version: ${{ steps.cog-release.outputs.version }}
-      changelog: ${{ steps.get-changelog.outputs.changelog }}
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.get-tag.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -138,55 +133,40 @@ jobs:
           echo "Available tags:"
           git tag | tail -5
 
-      - name: Update Cargo.toml version manually (pre-bump)
+      - name: Update version files before release
         run: |
           NEW_VERSION="${{ needs.check-release.outputs.new-version }}"
-          if [ -n "$NEW_VERSION" ]; then
-            echo "Updating Cargo.toml to version $NEW_VERSION"
-            sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
-          fi
+          echo "Updating version files to $NEW_VERSION"
 
-      - name: Update main.rs version manually (pre-bump)
-        run: |
-          NEW_VERSION="${{ needs.check-release.outputs.new-version }}"
-          if [ -n "$NEW_VERSION" ]; then
-            echo "Updating main.rs to version $NEW_VERSION"
-            sed -i "s/#\[command(version = \".*\")\]/#[command(version = \"$NEW_VERSION\")]/" src/main.rs
-          fi
+          # Update Cargo.toml
+          sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
 
-      - name: Commit version file updates
-        run: |
+          # Update main.rs
+          sed -i "s/#\[command(version = \".*\")\]/#[command(version = \"$NEW_VERSION\")]/" src/main.rs
+
+          # Commit changes
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add Cargo.toml src/main.rs
-          if ! git diff --staged --quiet; then
-            git commit -m "chore: update version files"
-          fi
+          git commit -m "chore: bump version to $NEW_VERSION"
 
-      - name: Release with cocogitto
-        id: cog-release
+      - name: Create release with cocogitto
+        id: release
         uses: cocogitto/cocogitto-action@v3
         with:
           release: true
           git-user: "github-actions[bot]"
           git-user-email: "github-actions[bot]@users.noreply.github.com"
 
-      - name: Generate changelog for GitHub release
-        id: get-changelog
+      - name: Get created tag
+        id: get-tag
         run: |
-          # The cocogitto action should have installed cog, so we can use it
-          LATEST_TAG=$(git describe --tags --abbrev=0)
-          echo "Generating changelog for tag: $LATEST_TAG"
-
-          # Generate changelog for the latest version
-          CHANGELOG_CONTENT=$(cog changelog --at "$LATEST_TAG" --template default 2>/dev/null || echo "Release $LATEST_TAG")
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
+          TAG=$(git describe --tags --abbrev=0)
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Created tag: $TAG"
   # Create the GitHub release
   release:
-    needs: [check-release, build, update-versions]
+    needs: [check-release, build, create-release]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -195,8 +175,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          ref: ${{ needs.update-versions.outputs.commit-sha || github.sha }}
-
+          ref: ${{ github.sha }}
       - name: Fetch all tags
         run: |
           git fetch --tags --force
@@ -216,23 +195,15 @@ jobs:
           cd release
           sha256sum * > checksums.txt
           cat checksums.txt
-      - name: Get release info
-        id: get-release-info
-        run: |
-          # Get the tag that was created by cocogitto
-          LATEST_TAG=$(git describe --tags --abbrev=0)
-          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-          echo "Using tag: $LATEST_TAG for GitHub release"
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.get-release-info.outputs.tag }}
-          name: Release ${{ steps.get-release-info.outputs.tag }}
+          tag_name: ${{ needs.create-release.outputs.tag }}
+          name: Release ${{ needs.create-release.outputs.tag }}
           body: |
             ## Changes
 
-            ${{ needs.update-versions.outputs.changelog }}
+            See [CHANGELOG.md](https://github.com/mattstruble/git-ai/blob/${{ needs.create-release.outputs.tag }}/CHANGELOG.md) for detailed release notes.
 
             ## Installation
 

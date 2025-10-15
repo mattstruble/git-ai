@@ -1,5 +1,5 @@
 # Cocogitto (Conventional Commits) Configuration
-# Optimized for cocogitto 6.3.0
+# Optimized for Full Automation with Hooks
 
 # Restrict version bumps to main branch only
 branch_whitelist = ["main"]
@@ -9,6 +9,18 @@ ignore_merge_commits = false
 from_latest_tag = true
 disable_changelog = false
 skip_ci = "[skip ci]"
+
+# 🎯 KEY OPTIMIZATION: Automated version management
+pre_bump_hooks = [
+  "cargo check --release",                                                # Verify project builds
+  "cargo set-version {{version}}",                                        # Auto-update Cargo.toml
+  "sed -i 's/#\\[command(version = \".*\")\\]/#[command(version = \"{{version}}\")]/g' src/main.rs"  # Update main.rs
+]
+
+post_bump_hooks = [
+  "cargo build --release",                                                # Verify updated version builds
+  "git add Cargo.toml src/main.rs Cargo.lock"                           # Stage version files
+]
 tag_prefix = "v"
 
 [changelog]
