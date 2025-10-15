@@ -9,6 +9,7 @@ ignore_merge_commits = false
 from_latest_tag = true
 disable_changelog = false
 skip_ci = "[skip ci]"
+tag_prefix = "v"
 
 [changelog]
 path = "CHANGELOG.md"
