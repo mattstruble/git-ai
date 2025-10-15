@@ -1,4 +1,14 @@
 # Cocogitto (Conventional Commits) Configuration
+# Optimized for cocogitto 6.3.0
+
+# Restrict version bumps to main branch only
+branch_whitelist = ["main"]
+
+# Additional configuration options for cocogitto 6.3.0
+ignore_merge_commits = false
+from_latest_tag = true
+disable_changelog = false
+skip_ci = "[skip ci]"
 
 [changelog]
 path = "CHANGELOG.md"
@@ -7,25 +17,17 @@ remote = "github.com"
 repository = "git-ai"
 owner = "mattstruble"
 
-[bump]
-# Automatically create annotated tags
-annotated = true
-# Don't create git hooks automatically
-hooks_enabled = false
-
 [commit_types]
 feat = { changelog_title = "Features", bump = "minor" }
 fix = { changelog_title = "Bug Fixes", bump = "patch" }
-docs = { changelog_title = "Documentation", bump = "none" }
-style = { changelog_title = "Styling", bump = "none" }
+docs = { changelog_title = "Documentation", bump = "none", changelog = false }
+style = { changelog_title = "Styling", bump = "none", changelog = false }
 refactor = { changelog_title = "Refactoring", bump = "patch" }
 perf = { changelog_title = "Performance", bump = "patch" }
-test = { changelog_title = "Testing", bump = "none" }
+test = { changelog_title = "Testing", bump = "none", changelog = false }
 chore = { changelog_title = "Miscellaneous", bump = "patch" }
-ci = { changelog_title = "Continuous Integration", bump = "none" }
-build = { changelog_title = "Build System", bump = "none" }
+ci = { changelog_title = "Continuous Integration", bump = "none", changelog = false }
+build = { changelog_title = "Build System", bump = "none", changelog = false }
 
-[git_hooks]
-# Disable git hooks by default - can be enabled with `cog install-hook`
-pre_push = false
-pre_commit = false
+# Git hooks configuration removed - not supported in cocogitto 6.3.0
+# Use 'cog install-hook' command to manage git hooks instead
