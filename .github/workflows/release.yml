@@ -45,9 +45,9 @@ jobs:
             echo "tag=" >> $GITHUB_OUTPUT
             echo "ℹ️ No release needed"
           fi
-  # 🏗️ Build artifacts in parallel (no dependency on release creation)
+  # 🏗️ Build artifacts with updated version files (after release creation)
   build-artifacts:
-    needs: [detect-release]
+    needs: [detect-release, create-release]
     if: needs.detect-release.outputs.should-release == 'true'
     strategy:
       matrix:
@@ -69,8 +69,10 @@ jobs:
             name: git-ai-windows-x86_64.exe
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout
+      - name: Checkout (with updated version files from create-release)
         uses: actions/checkout@v5
+        with:
+          ref: main # Get the latest commit including version updates from create-release
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -114,7 +116,7 @@ jobs:
     permissions:
       contents: write
     outputs:
-      tag: ${{ steps.release.outputs.tag }}
+      tag: ${{ steps.get-tag.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
