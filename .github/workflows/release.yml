@@ -153,12 +153,37 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout
+      - name: Checkout (get updated CHANGELOG.md)
         uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.create-release.outputs.tag }} # Get the tag with updated changelog
       - name: Download all artifacts
         uses: actions/download-artifact@v5
         with:
           path: artifacts
+      - name: Extract changelog content for release
+        id: changelog
+        run: |
+          TAG="${{ needs.create-release.outputs.tag }}"
+
+          # Extract the changelog section for this version from CHANGELOG.md
+          # Find the section starting with "## $TAG" and ending before the next "## "
+          CHANGELOG_CONTENT=$(awk "/^## $TAG/,/^## [^#]/ {
+            if (/^## [^#]/ && !/^## $TAG/) exit;
+            if (!/^## $TAG/) print;
+          }" CHANGELOG.md | sed '/^$/d' | head -n -1)
+
+          # Fallback if no content found
+          if [ -z "$CHANGELOG_CONTENT" ]; then
+            CHANGELOG_CONTENT="Changes and improvements in this release. See [CHANGELOG.md](https://github.com/mattstruble/git-ai/blob/$TAG/CHANGELOG.md) for full details."
+          fi
+
+          # Output for GitHub Actions (handle multiline)
+          echo "content<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "✅ Extracted changelog content for $TAG"
       - name: Prepare release assets
         run: |
           mkdir -p release
@@ -174,7 +199,7 @@ jobs:
           body: |
             ## Changes
 
-            See [CHANGELOG.md](https://github.com/mattstruble/git-ai/blob/${{ needs.create-release.outputs.tag }}/CHANGELOG.md) for detailed release notes.
+            ${{ steps.changelog.outputs.content }}
 
             ## Installation
 
