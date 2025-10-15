@@ -69,10 +69,10 @@ jobs:
             name: git-ai-windows-x86_64.exe
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout (with updated version files from create-release)
+      - name: Checkout (specific tag with version updates)
         uses: actions/checkout@v5
         with:
-          ref: main # Get the latest commit including version updates from create-release
+          ref: ${{ needs.create-release.outputs.tag }} # Use the exact tag commit with version updates
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -132,6 +132,14 @@ jobs:
           release: true
           git-user: "github-actions[bot]"
           git-user-email: "github-actions[bot]@users.noreply.github.com"
+      - name: Push version changes and tag to repository
+        run: |
+          # Push the commit with version changes
+          git push origin main
+          # Push the tag
+          TAG=$(git describe --tags --abbrev=0)
+          git push origin $TAG
+          echo "✅ Pushed version changes and tag: $TAG to repository"
       - name: Get created tag
         id: get-tag
         run: |
