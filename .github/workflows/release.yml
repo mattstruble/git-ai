@@ -22,19 +22,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check if release needed
+      - name: Fetch all tags
+        run: |
+          git fetch --tags --force
+          echo "Available tags:"
+          git tag | tail -5
+
+      - name: Check if release needed and get version
         id: release-check
         continue-on-error: true
         uses: cocogitto/cocogitto-action@v3
         with:
-          check-latest-tag-only: true
           dry-run: true
           release: true
 
-      - name: Set outputs based on cocogitto check
+      - name: Set final outputs
         id: final-outputs
         run: |
-          # The cocogitto action will succeed if a release is needed, fail if not
+          # Check if cocogitto action succeeded and produced a version
           if [ "${{ steps.release-check.outcome }}" = "success" ] && [ -n "${{ steps.release-check.outputs.version }}" ]; then
             echo "should-release=true" >> $GITHUB_OUTPUT
             echo "new-version=${{ steps.release-check.outputs.version }}" >> $GITHUB_OUTPUT
@@ -44,7 +49,7 @@ jobs:
             echo "should-release=false" >> $GITHUB_OUTPUT
             echo "new-version=" >> $GITHUB_OUTPUT
             echo "new-tag=" >> $GITHUB_OUTPUT
-            echo "No release needed - no relevant conventional commits found"
+            echo "No release needed - no relevant conventional commits found or cocogitto check failed"
           fi
   # Build binaries for multiple platforms
   build:
@@ -127,6 +132,12 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Fetch all tags
+        run: |
+          git fetch --tags --force
+          echo "Available tags:"
+          git tag | tail -5
+
       - name: Update Cargo.toml version manually (pre-bump)
         run: |
           NEW_VERSION="${{ needs.check-release.outputs.new-version }}"
@@ -185,6 +196,12 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ needs.update-versions.outputs.commit-sha || github.sha }}
+
+      - name: Fetch all tags
+        run: |
+          git fetch --tags --force
+          echo "Available tags:"
+          git tag | tail -5
       - name: Download all artifacts
         uses: actions/download-artifact@v5
         with:
