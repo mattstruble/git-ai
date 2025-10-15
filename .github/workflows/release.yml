@@ -1,63 +1,63 @@
-name: Release
+name: Optimized Release
 on:
   push:
     branches: [main]
   workflow_dispatch:
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
+
 jobs:
-  # Use cocogitto to check if a release should be created
-  check-release:
+  # 🔍 Detect if release is needed using cocogitto
+  detect-release:
     runs-on: ubuntu-latest
     outputs:
-      should-release: ${{ steps.final-outputs.outputs.should-release }}
-      new-version: ${{ steps.final-outputs.outputs.new-version }}
-      new-tag: ${{ steps.final-outputs.outputs.new-tag }}
+      should-release: ${{ steps.check.outputs.should-release }}
+      version: ${{ steps.check.outputs.version }}
+      tag: ${{ steps.check.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - name: Fetch all tags
-        run: |
-          git fetch --tags --force
-          echo "Available tags:"
-          git tag | tail -5
-      - name: Check if release needed and get version
-        id: release-check
-        continue-on-error: true
+
+      - name: Check if release needed
+        id: check
         uses: cocogitto/cocogitto-action@v3
         with:
           dry-run: true
-      - name: Set final outputs
-        id: final-outputs
+        continue-on-error: true
+
+      - name: Set release outputs
+        id: set-outputs
         run: |
-          # Check if cocogitto action succeeded and produced a version
-          if [ "${{ steps.release-check.outcome }}" = "success" ] && [ -n "${{ steps.release-check.outputs.version }}" ]; then
+          if [ "${{ steps.check.outcome }}" = "success" ] && [ -n "${{ steps.check.outputs.version }}" ]; then
             echo "should-release=true" >> $GITHUB_OUTPUT
-            echo "new-version=${{ steps.release-check.outputs.version }}" >> $GITHUB_OUTPUT
-            echo "new-tag=v${{ steps.release-check.outputs.version }}" >> $GITHUB_OUTPUT
-            echo "✅ Release should be created for version ${{ steps.release-check.outputs.version }}"
+            echo "version=${{ steps.check.outputs.version }}" >> $GITHUB_OUTPUT
+            echo "tag=v${{ steps.check.outputs.version }}" >> $GITHUB_OUTPUT
+            echo "✅ Release will be created for version ${{ steps.check.outputs.version }}"
           else
             echo "should-release=false" >> $GITHUB_OUTPUT
-            echo "new-version=" >> $GITHUB_OUTPUT
-            echo "new-tag=" >> $GITHUB_OUTPUT
-            echo "No release needed - no relevant conventional commits found or cocogitto check failed"
+            echo "version=" >> $GITHUB_OUTPUT
+            echo "tag=" >> $GITHUB_OUTPUT
+            echo "ℹ️ No release needed"
           fi
-  # Build binaries for multiple platforms
-  build:
-    needs: [check-release, create-release]
-    if: needs.check-release.outputs.should-release == 'true'
+
+  # 🏗️ Build artifacts in parallel (no dependency on release creation)
+  build-artifacts:
+    needs: [detect-release]
+    if: needs.detect-release.outputs.should-release == 'true'
     strategy:
       matrix:
         include:
-          - target: x86_64-unknown-linux-gnu
+          - target: x86_64-linux-gnu
             os: ubuntu-latest
             name: git-ai-linux-x86_64
-          - target: aarch64-unknown-linux-gnu
+          - target: aarch64-linux-gnu
             os: ubuntu-latest
             name: git-ai-linux-aarch64
           - target: x86_64-apple-darwin
@@ -73,19 +73,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          ref: ${{ github.sha }}
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+
       - name: Setup cross-compilation (Linux ARM64)
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        if: matrix.target == 'aarch64-linux-gnu'
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-      - name: Cache cargo registry
+          echo "CARGO_TARGET_AARCH64_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+
+      - name: Cache cargo dependencies
         uses: actions/cache@v4
         with:
           path: |
@@ -93,33 +94,37 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
           key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Build binary
+
+      - name: Build optimized binary
         run: cargo build --release --target ${{ matrix.target }}
+
       - name: Prepare binary (Unix)
         if: matrix.os != 'windows-latest'
         run: |
           cp target/${{ matrix.target }}/release/git-ai ${{ matrix.name }}
           chmod +x ${{ matrix.name }}
+
       - name: Prepare binary (Windows)
         if: matrix.os == 'windows-latest'
         run: |
           cp target/${{ matrix.target }}/release/git-ai.exe ${{ matrix.name }}
-      - name: Upload binary
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.name }}
           path: ${{ matrix.name }}
           if-no-files-found: error
-  # Create release using cocogitto
+
+  # 🚀 Create release using cocogitto automation (parallel with build)
   create-release:
-    needs: [check-release]
-    if: needs.check-release.outputs.should-release == 'true'
+    needs: [detect-release]
+    if: needs.detect-release.outputs.should-release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     outputs:
-      version: ${{ steps.release.outputs.version }}
-      tag: ${{ steps.get-tag.outputs.tag }}
+      tag: ${{ steps.release.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -127,28 +132,8 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Fetch all tags
-        run: |
-          git fetch --tags --force
-          echo "Available tags:"
-          git tag | tail -5
-
-      - name: Update version files before release
-        run: |
-          NEW_VERSION="${{ needs.check-release.outputs.new-version }}"
-          echo "Updating version files to $NEW_VERSION"
-
-          # Update Cargo.toml
-          sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
-
-          # Update main.rs
-          sed -i "s/#\[command(version = \".*\")\]/#[command(version = \"$NEW_VERSION\")]/" src/main.rs
-
-          # Commit changes
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add Cargo.toml src/main.rs
-          git commit -m "chore: bump version to $NEW_VERSION"
+      - name: Install cargo-edit for hooks
+        run: cargo install cargo-edit
 
       - name: Create release with cocogitto
         id: release
@@ -163,38 +148,31 @@ jobs:
         run: |
           TAG=$(git describe --tags --abbrev=0)
           echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "Created tag: $TAG"
-  # Create the GitHub release
-  release:
-    needs: [check-release, build, create-release]
+          echo "✅ Created release tag: $TAG"
+
+  # 📦 Publish GitHub release with artifacts
+  publish-release:
+    needs: [detect-release, build-artifacts, create-release]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          ref: ${{ github.sha }}
-      - name: Fetch all tags
-        run: |
-          git fetch --tags --force
-          echo "Available tags:"
-          git tag | tail -5
+
       - name: Download all artifacts
         uses: actions/download-artifact@v5
         with:
           path: artifacts
-      - name: Move artifacts to release directory
+
+      - name: Prepare release assets
         run: |
           mkdir -p release
           find artifacts -name "git-ai*" -type f -exec cp {} release/ \;
-          ls -la release/
-      - name: Create checksums
-        run: |
           cd release
           sha256sum * > checksums.txt
-          cat checksums.txt
+          ls -la
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -229,8 +207,7 @@ jobs:
             ## Checksums
 
             See `checksums.txt` for SHA256 checksums of all binaries.
-          files: |
-            release/*
+          files: release/*
           draft: false
           prerelease: false
           token: ${{ secrets.GITHUB_TOKEN }}

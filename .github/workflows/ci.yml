@@ -4,23 +4,28 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
+
 jobs:
-  # Check code formatting, linting, and run tests
-  check:
+  # 🔍 Quality gates: formatting, linting, and testing
+  quality-gate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - name: Cache cargo registry
+
+      - name: Cache cargo dependencies
         uses: actions/cache@v4
         with:
           path: |
@@ -28,16 +33,20 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
       - name: Check formatting
-        run: cargo fmt -- --check
+        run: cargo fmt --all -- --check
+
       - name: Run clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
       - name: Run tests
-        run: cargo test
-      - name: Check build
-        run: cargo check
-  # Test on multiple platforms
-  test-platforms:
+        run: cargo test --all-features
+
+      - name: Verify build
+        run: cargo check --all-features --all-targets
+  # 🌐 Test on multiple platforms
+  cross-platform-test:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -45,9 +54,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-      - name: Cache cargo registry
+
+      - name: Cache cargo dependencies
         uses: actions/cache@v4
         with:
           path: |
@@ -55,23 +66,36 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
       - name: Run tests
-        run: cargo test
-      - name: Build
+        run: cargo test --all-features
+
+      - name: Build release binary
         run: cargo build --release
-  # Security audit
-  audit:
+
+  # 🔒 Security audit
+  security-audit:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo audit
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo
+          key: ${{ runner.os }}-cargo-audit
+
       - name: Install cargo-audit
         run: cargo install cargo-audit
+
       - name: Run security audit
         run: cargo audit
-  # Check conventional commits (only on PRs)
+
+  # 📝 Check conventional commits (PRs only)
   conventional-commits:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -80,7 +104,9 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - name: Check conventional commits
+
+      - name: Validate conventional commits
         uses: cocogitto/cocogitto-action@v3
         with:
+          check: true
           check-latest-tag-only: true
