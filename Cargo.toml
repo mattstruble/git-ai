@@ -1,6 +1,6 @@
 [package]
 name = "git-ai"
-version = "0.7.0"
+version = "0.6.1"
 edition = "2021"
 rust-version = "1.70"
 authors = ["Matt Struble <mestruble@users.noreply.github.com>"]
@@ -12,13 +12,13 @@ readme = "README.md"
 keywords = ["git", "ai", "cursor", "cli", "workflow"]
 categories = ["command-line-utilities", "development-tools"]
 exclude = [
-    "target/",
-    ".git/",
-    ".github/",
-    "*.log",
-    "flake.*",
-    "justfile",
-    "renovate.json",
+  "target/",
+  ".git/",
+  ".github/",
+  "*.log",
+  "flake.*",
+  "justfile",
+  "renovate.json",
 ]
 
 [[bin]]
@@ -28,7 +28,12 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
 anyhow = "1.0"
-tokio = { version = "1.0", features = ["rt-multi-thread", "macros", "process", "io-util"] }
+tokio = { version = "1.0", features = [
+  "rt-multi-thread",
+  "macros",
+  "process",
+  "io-util",
+] }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 dirs = "6.0"
@@ -39,8 +44,8 @@ tokio-test = "0.4"
 tempfile = "3.0"
 
 [profile.release]
-opt-level = "z"     # Optimize for size
-lto = true          # Enable Link Time Optimization
-codegen-units = 1   # Reduce number of codegen units to increase optimizations
-panic = "abort"     # Abort on panic (reduces binary size)
-strip = true        # Strip symbols from binary
+opt-level = "z"   # Optimize for size
+lto = true        # Enable Link Time Optimization
+codegen-units = 1 # Reduce number of codegen units to increase optimizations
+panic = "abort"   # Abort on panic (reduces binary size)
+strip = true      # Strip symbols from binary
