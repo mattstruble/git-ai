@@ -22,63 +22,29 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install cocogitto
-        run: |
-          curl -L https://github.com/cocogitto/cocogitto/releases/latest/download/cog-linux-x86_64.tar.gz | tar xz
-          sudo mv cog /usr/local/bin/
-          cog --version
+      - name: Check if release needed
+        id: release-check
+        continue-on-error: true
+        uses: cocogitto/cocogitto-action@v3
+        with:
+          check-latest-tag-only: true
+          dry-run: true
+          release: true
 
-      - name: Check conventional commits
-        id: check-commits
-        run: |
-          # First check if we have any conventional commits since the latest tag
-          if ! cog check --from-latest-tag 2>/dev/null; then
-            echo "❌ Conventional commit check failed or no commits since latest tag"
-            echo "has-commits=false" >> $GITHUB_OUTPUT
-          else
-            echo "✅ Conventional commits found since latest tag"
-            echo "has-commits=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Check if bump needed
-        id: check-bump
-        if: steps.check-commits.outputs.has-commits == 'true'
-        run: |
-          # Check what version would be bumped to using cocogitto
-          VERSION_OUTPUT=$(cog bump --dry-run 2>&1 || echo "NO_BUMP_NEEDED")
-
-          echo "Cog bump output:"
-          echo "$VERSION_OUTPUT"
-
-          if echo "$VERSION_OUTPUT" | grep -q "No conventional commit found\|NO_BUMP_NEEDED"; then
-            echo "should-release=false" >> $GITHUB_OUTPUT
-            echo "No version bump needed - no relevant conventional commits found"
-          else
-            # Try to extract version from output (cocogitto outputs "v1.2.3" format)
-            NEW_VERSION=$(echo "$VERSION_OUTPUT" | grep -o "v[0-9]\+\.[0-9]\+\.[0-9]\+" | head -1)
-            if [ -n "$NEW_VERSION" ]; then
-              echo "should-release=true" >> $GITHUB_OUTPUT
-              echo "new-version=${NEW_VERSION#v}" >> $GITHUB_OUTPUT  # Remove 'v' prefix
-              echo "new-tag=$NEW_VERSION" >> $GITHUB_OUTPUT
-              echo "✅ Release should be created for version $NEW_VERSION"
-            else
-              echo "should-release=false" >> $GITHUB_OUTPUT
-              echo "Could not determine new version from cog output"
-            fi
-          fi
-
-      - name: Set final outputs
+      - name: Set outputs based on cocogitto check
         id: final-outputs
         run: |
-          # Set final outputs based on previous steps
-          if [ "${{ steps.check-commits.outputs.has-commits }}" != "true" ]; then
+          # The cocogitto action will succeed if a release is needed, fail if not
+          if [ "${{ steps.release-check.outcome }}" = "success" ] && [ -n "${{ steps.release-check.outputs.version }}" ]; then
+            echo "should-release=true" >> $GITHUB_OUTPUT
+            echo "new-version=${{ steps.release-check.outputs.version }}" >> $GITHUB_OUTPUT
+            echo "new-tag=v${{ steps.release-check.outputs.version }}" >> $GITHUB_OUTPUT
+            echo "✅ Release should be created for version ${{ steps.release-check.outputs.version }}"
+          else
             echo "should-release=false" >> $GITHUB_OUTPUT
             echo "new-version=" >> $GITHUB_OUTPUT
             echo "new-tag=" >> $GITHUB_OUTPUT
-          else
-            echo "should-release=${{ steps.check-bump.outputs.should-release || 'false' }}" >> $GITHUB_OUTPUT
-            echo "new-version=${{ steps.check-bump.outputs.new-version || '' }}" >> $GITHUB_OUTPUT
-            echo "new-tag=${{ steps.check-bump.outputs.new-tag || '' }}" >> $GITHUB_OUTPUT
+            echo "No release needed - no relevant conventional commits found"
           fi
   # Build binaries for multiple platforms
   build:
@@ -153,6 +119,7 @@ jobs:
     outputs:
       commit-sha: ${{ steps.cog-release.outputs.commit-sha }}
       version: ${{ steps.cog-release.outputs.version }}
+      changelog: ${{ steps.get-changelog.outputs.changelog }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -193,6 +160,19 @@ jobs:
           git-user: "github-actions[bot]"
           git-user-email: "github-actions[bot]@users.noreply.github.com"
 
+      - name: Generate changelog for GitHub release
+        id: get-changelog
+        run: |
+          # The cocogitto action should have installed cog, so we can use it
+          LATEST_TAG=$(git describe --tags --abbrev=0)
+          echo "Generating changelog for tag: $LATEST_TAG"
+
+          # Generate changelog for the latest version
+          CHANGELOG_CONTENT=$(cog changelog --at "$LATEST_TAG" --template default 2>/dev/null || echo "Release $LATEST_TAG")
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
   # Create the GitHub release
   release:
     needs: [check-release, build, update-versions]
@@ -219,37 +199,23 @@ jobs:
           cd release
           sha256sum * > checksums.txt
           cat checksums.txt
-      - name: Get latest tag for release
-        id: get-tag
+      - name: Get release info
+        id: get-release-info
         run: |
-          # The cocogitto action should have created a tag, get the latest one
+          # Get the tag that was created by cocogitto
           LATEST_TAG=$(git describe --tags --abbrev=0)
           echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-          echo "Using tag: $LATEST_TAG"
-
-      - name: Generate changelog for release
-        id: changelog
-        run: |
-          # Install cocogitto to generate changelog
-          curl -L https://github.com/cocogitto/cocogitto/releases/latest/download/cog-linux-x86_64.tar.gz | tar xz
-          sudo mv cog /usr/local/bin/
-
-          # Generate changelog for the latest version
-          LATEST_TAG="${{ steps.get-tag.outputs.tag }}"
-          CHANGELOG_CONTENT=$(cog changelog --at "$LATEST_TAG" --template default || echo "Release $LATEST_TAG")
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "Using tag: $LATEST_TAG for GitHub release"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.get-tag.outputs.tag }}
-          name: Release ${{ steps.get-tag.outputs.tag }}
+          tag_name: ${{ steps.get-release-info.outputs.tag }}
+          name: Release ${{ steps.get-release-info.outputs.tag }}
           body: |
             ## Changes
 
-            ${{ steps.changelog.outputs.changelog }}
+            ${{ needs.update-versions.outputs.changelog }}
 
             ## Installation
 
