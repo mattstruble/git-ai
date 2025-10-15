@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - - -
+## v0.7.1 - 2025-10-15
+#### Bug Fixes
+- test new ci/cd release tagging - (d8cee0a) - Matt Struble
+#### Continuous Integration
+- **(release)** fix version tag handling in release workflow - (8324abd) - Matt Struble
+
+- - -
+
 ## v0.7.0 - 2025-10-15
 #### Bug Fixes
 - clean up changelog format for cocogitto compatibility - (249c040) - Matt Struble

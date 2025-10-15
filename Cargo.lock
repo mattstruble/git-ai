@@ -230,7 +230,7 @@ dependencies = [
 
 [[package]]
 name = "git-ai"
-version = "0.6.1"
+version = "0.7.1"
 dependencies = [
  "anyhow",
  "clap",
