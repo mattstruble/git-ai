@@ -13,9 +13,9 @@ jobs:
   detect-release:
     runs-on: ubuntu-latest
     outputs:
-      should-release: ${{ steps.check.outputs.should-release }}
-      version: ${{ steps.check.outputs.version }}
-      tag: ${{ steps.check.outputs.tag }}
+      should-release: ${{ steps.set-outputs.outputs.should-release }}
+      version: ${{ steps.set-outputs.outputs.version }}
+      tag: ${{ steps.set-outputs.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -31,10 +31,14 @@ jobs:
         id: set-outputs
         run: |
           if [ "${{ steps.check.outcome }}" = "success" ] && [ -n "${{ steps.check.outputs.version }}" ]; then
+            # Cocogitto outputs version with 'v' prefix (e.g., v0.7.0)
+            VERSION_WITH_V="${{ steps.check.outputs.version }}"
+            VERSION_WITHOUT_V="${VERSION_WITH_V#v}"  # Strip 'v' prefix
+
             echo "should-release=true" >> $GITHUB_OUTPUT
-            echo "version=${{ steps.check.outputs.version }}" >> $GITHUB_OUTPUT
-            echo "tag=v${{ steps.check.outputs.version }}" >> $GITHUB_OUTPUT
-            echo "✅ Release will be created for version ${{ steps.check.outputs.version }}"
+            echo "version=$VERSION_WITHOUT_V" >> $GITHUB_OUTPUT  # Clean version without 'v'
+            echo "tag=$VERSION_WITH_V" >> $GITHUB_OUTPUT         # Tag with 'v' prefix
+            echo "✅ Release will be created for version $VERSION_WITH_V"
           else
             echo "should-release=false" >> $GITHUB_OUTPUT
             echo "version=" >> $GITHUB_OUTPUT
