@@ -9,61 +9,43 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
 jobs:
-  # Analyze commits to determine if a release should be created
+  # Use cocogitto to check if a release should be created
   check-release:
     runs-on: ubuntu-latest
     outputs:
-      should-release: ${{ steps.set-release.outputs.should-release }}
-      new-version: ${{ steps.set-release.outputs.new-version }}
-      changelog: ${{ steps.version.outputs.changelog }}
+      should-release: ${{ steps.check-bump.outputs.should-release }}
+      new-version: ${{ steps.check-bump.outputs.new-version }}
+      new-tag: ${{ steps.check-bump.outputs.new-tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - name: Check for conventional commits and determine version
-        id: version
-        uses: mathieudutour/github-tag-action@v6.2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          dry_run: true
-          default_bump: false
-          custom_release_rules: |
-            feat:minor,fix:patch,docs:patch,style:patch,refactor:patch,perf:patch,test:patch
 
-      - name: Debug version outputs
+      - name: Install cocogitto
         run: |
-          echo "Debug: All step outputs:"
-          echo "new_tag: '${{ steps.version.outputs.new_tag }}'"
-          echo "new_version: '${{ steps.version.outputs.new_version }}'"
-          echo "previous_tag: '${{ steps.version.outputs.previous_tag }}'"
-          echo "changelog: '${{ steps.version.outputs.changelog }}'"
+          curl -L https://github.com/cocogitto/cocogitto/releases/latest/download/cog-linux-x86_64.tar.gz | tar xz
+          sudo mv cog /usr/local/bin/
+          cog --version
 
-      - name: Set release flag
-        id: set-release
+      - name: Check if bump needed
+        id: check-bump
         run: |
-          # The action outputs new_tag (with v prefix) not new_version
-          NEW_TAG="${{ steps.version.outputs.new_tag }}"
-          NEW_VERSION="${{ steps.version.outputs.new_version }}"
-
-          echo "Raw NEW_TAG: '$NEW_TAG'"
-          echo "Raw NEW_VERSION: '$NEW_VERSION'"
-
-          # Use new_tag and strip 'v' prefix if present, fallback to new_version
-          if [ -n "$NEW_TAG" ]; then
-            VERSION=${NEW_TAG#v}  # Remove 'v' prefix if present
-            echo "should-release=true" >> $GITHUB_OUTPUT
-            echo "new-version=$VERSION" >> $GITHUB_OUTPUT
-            echo "Release should be created for version $VERSION (from new_tag: $NEW_TAG)"
-          elif [ -n "$NEW_VERSION" ]; then
-            VERSION=${NEW_VERSION#v}  # Remove 'v' prefix if present
-            echo "should-release=true" >> $GITHUB_OUTPUT
-            echo "new-version=$VERSION" >> $GITHUB_OUTPUT
-            echo "Release should be created for version $VERSION (from new_version: $NEW_VERSION)"
+          # Check what version would be bumped to
+          if cog bump --dry-run 2>/dev/null; then
+            NEW_VERSION=$(cog bump --dry-run 2>/dev/null | grep -o "v[0-9]\+\.[0-9]\+\.[0-9]\+" | head -1)
+            if [ -n "$NEW_VERSION" ]; then
+              echo "should-release=true" >> $GITHUB_OUTPUT
+              echo "new-version=${NEW_VERSION#v}" >> $GITHUB_OUTPUT
+              echo "new-tag=$NEW_VERSION" >> $GITHUB_OUTPUT
+              echo "Release should be created for version $NEW_VERSION"
+            else
+              echo "should-release=false" >> $GITHUB_OUTPUT
+              echo "No version bump needed"
+            fi
           else
             echo "should-release=false" >> $GITHUB_OUTPUT
-            echo "new-version=" >> $GITHUB_OUTPUT
-            echo "No release needed - no version detected"
+            echo "No conventional commits found that require a version bump"
           fi
   # Build binaries for multiple platforms
   build:
@@ -128,7 +110,7 @@ jobs:
           name: ${{ matrix.name }}
           path: ${{ matrix.name }}
           if-no-files-found: error
-  # Update version numbers and changelog
+  # Use cocogitto to bump version and update changelog
   update-versions:
     needs: [check-release]
     if: needs.check-release.outputs.should-release == 'true'
@@ -136,7 +118,8 @@ jobs:
     permissions:
       contents: write
     outputs:
-      commit-sha: ${{ steps.commit-changes.outputs.commit-sha }}
+      commit-sha: ${{ steps.cog-bump.outputs.commit-sha }}
+      changelog: ${{ steps.get-changelog.outputs.changelog }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -149,83 +132,48 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
-      - name: Update Cargo.toml version
+      - name: Install cocogitto
+        run: |
+          curl -L https://github.com/cocogitto/cocogitto/releases/latest/download/cog-linux-x86_64.tar.gz | tar xz
+          sudo mv cog /usr/local/bin/
+          cog --version
+
+      - name: Update Cargo.toml version manually (pre-bump)
         run: |
           NEW_VERSION="${{ needs.check-release.outputs.new-version }}"
           echo "Updating Cargo.toml to version $NEW_VERSION"
           sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
-          echo "Updated Cargo.toml:"
-          grep "^version = " Cargo.toml
 
-      - name: Update main.rs version
+      - name: Update main.rs version manually (pre-bump)
         run: |
           NEW_VERSION="${{ needs.check-release.outputs.new-version }}"
           echo "Updating main.rs to version $NEW_VERSION"
           sed -i "s/#\[command(version = \".*\")\]/#[command(version = \"$NEW_VERSION\")]/" src/main.rs
-          echo "Updated main.rs:"
-          grep "#\[command(version = " src/main.rs
 
-      - name: Update CHANGELOG.md
+      - name: Run cog bump to create tag and update changelog
+        id: cog-bump
         run: |
+          # Commit the Cargo.toml and main.rs changes first
+          git add Cargo.toml src/main.rs
+          git commit -m "chore: update version files to ${{ needs.check-release.outputs.new-version }}"
+
+          # Run cog bump to create the tag and update changelog
+          cog bump --auto
+
+          # Push changes
+          git push origin main --tags
+          echo "commit-sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          echo "Version bumped and tagged successfully"
+
+      - name: Get generated changelog
+        id: get-changelog
+        run: |
+          # Extract the changelog for this version
           NEW_VERSION="${{ needs.check-release.outputs.new-version }}"
-          RELEASE_DATE=$(date +%Y-%m-%d)
-          echo "Updating CHANGELOG.md for version $NEW_VERSION on $RELEASE_DATE"
-
-          # Create a temporary file for the new changelog
-          cat > temp_changelog.md << EOF
-          # Changelog
-
-          All notable changes to this project will be documented in this file.
-
-          The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-          and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-          ## [Unreleased]
-
-          EOF
-
-          # Add the content from the current unreleased section and replace it with the new version
-          awk '
-            /^## \[Unreleased\]/ {
-              in_unreleased = 1
-              next
-            }
-            /^## \[/ && in_unreleased {
-              print "## ['"$NEW_VERSION"'] - '"$RELEASE_DATE"'"
-              print ""
-              print unreleased_content
-              in_unreleased = 0
-              print $0
-              next
-            }
-            in_unreleased {
-              if ($0 != "" || unreleased_content != "") {
-                unreleased_content = unreleased_content $0 "\n"
-              }
-              next
-            }
-            { print }
-          ' CHANGELOG.md >> temp_changelog.md
-
-          # Replace the original changelog
-          mv temp_changelog.md CHANGELOG.md
-
-          echo "Updated CHANGELOG.md:"
-          head -20 CHANGELOG.md
-
-      - name: Commit version updates
-        id: commit-changes
-        run: |
-          git add Cargo.toml src/main.rs CHANGELOG.md
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-            echo "commit-sha=" >> $GITHUB_OUTPUT
-          else
-            git commit -m "chore: bump version to ${{ needs.check-release.outputs.new-version }}"
-            git push origin main
-            echo "commit-sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
-            echo "Committed version updates"
-          fi
+          CHANGELOG_CONTENT=$(cog changelog --at "v$NEW_VERSION" --template default)
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
   # Create the GitHub release
   release:
@@ -254,21 +202,14 @@ jobs:
           sha256sum * > checksums.txt
           cat checksums.txt
       - name: Create GitHub Release
-        id: create_release
-        uses: mathieudutour/github-tag-action@v6.2
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          custom_release_rules: |
-            feat:minor,fix:patch,docs:patch,style:patch,refactor:patch,perf:patch,test:patch
-      - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.create_release.outputs.new_tag }}
-          name: Release ${{ steps.create_release.outputs.new_tag }}
+          tag_name: ${{ needs.check-release.outputs.new-tag }}
+          name: Release ${{ needs.check-release.outputs.new-tag }}
           body: |
             ## Changes
 
-            ${{ steps.create_release.outputs.changelog }}
+            ${{ needs.update-versions.outputs.changelog }}
 
             ## Installation
 
