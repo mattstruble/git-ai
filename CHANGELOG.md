@@ -8,6 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 - - -
+## v0.7.0 - 2025-10-15
+#### Bug Fixes
+- clean up changelog format for cocogitto compatibility - (249c040) - Matt Struble
+#### Build System
+- optimize cocogitto configuration for v6.3.0 - (1041eb7) - Matt Struble
+- adjust cocogitto bump rules for non-code changes - (422b594) - Matt Struble
+#### Continuous Integration
+- **(release)** improve tag fetching in workflow - (5b1a625) - Matt Struble
+- **(workflows)** refactor release workflow to use cocogitto action - (b8a8e38) - Matt Struble
+- **(workflows)** improve release workflow robustness - (e4441b4) - Matt Struble
+- add tag prefix - (59256a9) - Matt Struble
+- migrate release workflow to use cocogitto - (63906e4) - Matt Struble
+#### Features
+- implement cocogitto automation with hooks - (ea17409) - Matt Struble
+#### Miscellaneous
+- **(config)** remove commit_msg hook configuration - (e8cf633) - Matt Struble
+- bump version to 0.6.1 - (752cc2b) - github-actions[bot]
+#### Testing
+- validate cocogitto hooks functionality - (98818d8) - Matt Struble
+
+- - -
+
 
 ## [0.6.1] - 2025-10-14
 
