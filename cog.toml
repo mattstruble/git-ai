@@ -2,7 +2,7 @@
 
 [changelog]
 path = "CHANGELOG.md"
-template = "remote"
+template = "default"
 remote = "github.com"
 repository = "git-ai"
 owner = "mattstruble"
@@ -16,13 +16,14 @@ hooks_enabled = false
 [commit_types]
 feat = { changelog_title = "Features", bump = "minor" }
 fix = { changelog_title = "Bug Fixes", bump = "patch" }
-docs = { changelog_title = "Documentation", bump = "patch" }
-style = { changelog_title = "Styling", bump = "patch" }
+docs = { changelog_title = "Documentation", bump = "none" }
+style = { changelog_title = "Styling", bump = "none" }
 refactor = { changelog_title = "Refactoring", bump = "patch" }
 perf = { changelog_title = "Performance", bump = "patch" }
-test = { changelog_title = "Testing", bump = "patch" }
+test = { changelog_title = "Testing", bump = "none" }
 chore = { changelog_title = "Miscellaneous", bump = "patch" }
-ci = { changelog_title = "Continuous Integration", bump = "patch" }
+ci = { changelog_title = "Continuous Integration", bump = "none" }
+build = { changelog_title = "Build System", bump = "none" }
 
 [git_hooks]
 # Disable git hooks by default - can be enabled with `cog install-hook`
