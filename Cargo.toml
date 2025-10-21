@@ -26,17 +26,24 @@ name = "git-ai"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "4.0", features = ["derive"] }
 anyhow = "1.0"
+async-trait = "0.1"
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4.0", features = ["derive"] }
+dirs = "6.0"
+ignore = "0.4"
+md5 = "0.7"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
 tokio = { version = "1.0", features = [
   "rt-multi-thread",
   "macros",
   "process",
   "io-util",
+  "fs",
 ] }
-serde = { version = "1.0", features = ["derive"] }
-serde_yaml = "0.9"
-dirs = "6.0"
+walkdir = "2.0"
 
 [dev-dependencies]
 mockall = "0.13"
