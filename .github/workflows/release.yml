@@ -23,7 +23,7 @@ jobs:
           fetch-depth: 0
       - name: Check if release needed
         id: check
-        uses: cocogitto/cocogitto-action@v4
+        uses: cocogitto/cocogitto-action@v3
         with:
           dry-run: true
         continue-on-error: true
@@ -127,7 +127,7 @@ jobs:
         run: cargo install cargo-edit
       - name: Create release with cocogitto
         id: release
-        uses: cocogitto/cocogitto-action@v4
+        uses: cocogitto/cocogitto-action@v3
         with:
           release: true
           git-user: "github-actions[bot]"

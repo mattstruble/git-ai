@@ -106,7 +106,7 @@ jobs:
           fetch-depth: 0
 
       - name: Validate conventional commits
-        uses: cocogitto/cocogitto-action@v4
+        uses: cocogitto/cocogitto-action@v3
         with:
           check: true
           check-latest-tag-only: true
