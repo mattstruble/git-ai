@@ -23,9 +23,15 @@ impl ContextManager {
 
         // Register default providers
         providers.insert(ContextType::Git, Box::new(GitContextProvider::new()));
-        providers.insert(ContextType::Project, Box::new(ProjectContextProvider::new()));
+        providers.insert(
+            ContextType::Project,
+            Box::new(ProjectContextProvider::new()),
+        );
         providers.insert(ContextType::Agent, Box::new(AgentContextProvider::new()));
-        providers.insert(ContextType::Interaction, Box::new(InteractionContextProvider::new()));
+        providers.insert(
+            ContextType::Interaction,
+            Box::new(InteractionContextProvider::new()),
+        );
 
         Ok(Self { cache, providers })
     }
@@ -58,7 +64,10 @@ impl ContextManager {
 
             Ok(fresh_data)
         } else {
-            anyhow::bail!("No provider registered for context type: {:?}", context_type);
+            anyhow::bail!(
+                "No provider registered for context type: {:?}",
+                context_type
+            );
         }
     }
 
@@ -70,7 +79,10 @@ impl ContextManager {
             self.cache.store(context_type, &fresh_data).await?;
             Ok(fresh_data)
         } else {
-            anyhow::bail!("No provider registered for context type: {:?}", context_type);
+            anyhow::bail!(
+                "No provider registered for context type: {:?}",
+                context_type
+            );
         }
     }
 

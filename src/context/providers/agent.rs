@@ -1,6 +1,5 @@
 use crate::context::{
-    AgentContext, ConfigFormat, ContextData, ContextProvider, ContextType,
-    AgentConfigFile,
+    AgentConfigFile, AgentContext, ConfigFormat, ContextData, ContextProvider, ContextType,
 };
 use anyhow::Result;
 use std::collections::HashMap;
@@ -126,12 +125,16 @@ impl AgentContextProvider {
         for config_file in config_files {
             match config_file.format {
                 ConfigFormat::Json => {
-                    if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&config_file.content) {
+                    if let Ok(json_value) =
+                        serde_json::from_str::<serde_json::Value>(&config_file.content)
+                    {
                         self.extract_rules_from_json(&json_value, &mut rules);
                     }
                 }
                 ConfigFormat::Yaml => {
-                    if let Ok(yaml_value) = serde_yaml::from_str::<serde_yaml::Value>(&config_file.content) {
+                    if let Ok(yaml_value) =
+                        serde_yaml::from_str::<serde_yaml::Value>(&config_file.content)
+                    {
                         self.extract_rules_from_yaml(&yaml_value, &mut rules);
                     }
                 }
@@ -150,7 +153,8 @@ impl AgentContextProvider {
                         let trimmed = line.trim();
                         if trimmed.starts_with("rule") && trimmed.contains('=') {
                             if let Some(rule_value) = trimmed.split('=').nth(1) {
-                                let cleaned = rule_value.trim().trim_matches('"').trim_matches('\'');
+                                let cleaned =
+                                    rule_value.trim().trim_matches('"').trim_matches('\'');
                                 if !cleaned.is_empty() {
                                     rules.push(cleaned.to_string());
                                 }
@@ -166,10 +170,17 @@ impl AgentContextProvider {
 
     /// Extract rules from JSON value
     fn extract_rules_from_json(&self, value: &serde_json::Value, rules: &mut Vec<String>) {
+        let _ = &self; // Suppress clippy warning for recursion
         match value {
             serde_json::Value::Object(map) => {
                 // Look for common rule fields
-                for key in &["rules", "instructions", "prompts", "guidelines", "constraints"] {
+                for key in &[
+                    "rules",
+                    "instructions",
+                    "prompts",
+                    "guidelines",
+                    "constraints",
+                ] {
                     if let Some(rule_value) = map.get(*key) {
                         self.extract_rules_from_json(rule_value, rules);
                     }
@@ -193,10 +204,17 @@ impl AgentContextProvider {
 
     /// Extract rules from YAML value
     fn extract_rules_from_yaml(&self, value: &serde_yaml::Value, rules: &mut Vec<String>) {
+        let _ = &self; // Suppress clippy warning for recursion
         match value {
             serde_yaml::Value::Mapping(map) => {
-                for key in &["rules", "instructions", "prompts", "guidelines", "constraints"] {
-                    if let Some(rule_value) = map.get(&serde_yaml::Value::String(key.to_string())) {
+                for key in &[
+                    "rules",
+                    "instructions",
+                    "prompts",
+                    "guidelines",
+                    "constraints",
+                ] {
+                    if let Some(rule_value) = map.get(serde_yaml::Value::String(key.to_string())) {
                         self.extract_rules_from_yaml(rule_value, rules);
                     }
                 }
@@ -218,18 +236,25 @@ impl AgentContextProvider {
     }
 
     /// Extract custom prompts from configuration files
-    async fn extract_custom_prompts(&self, config_files: &[AgentConfigFile]) -> HashMap<String, String> {
+    async fn extract_custom_prompts(
+        &self,
+        config_files: &[AgentConfigFile],
+    ) -> HashMap<String, String> {
         let mut prompts = HashMap::new();
 
         for config_file in config_files {
             match config_file.format {
                 ConfigFormat::Json => {
-                    if let Ok(json_value) = serde_json::from_str::<serde_json::Value>(&config_file.content) {
+                    if let Ok(json_value) =
+                        serde_json::from_str::<serde_json::Value>(&config_file.content)
+                    {
                         self.extract_prompts_from_json(&json_value, &mut prompts);
                     }
                 }
                 ConfigFormat::Yaml => {
-                    if let Ok(yaml_value) = serde_yaml::from_str::<serde_yaml::Value>(&config_file.content) {
+                    if let Ok(yaml_value) =
+                        serde_yaml::from_str::<serde_yaml::Value>(&config_file.content)
+                    {
                         self.extract_prompts_from_yaml(&yaml_value, &mut prompts);
                     }
                 }
@@ -241,7 +266,11 @@ impl AgentContextProvider {
     }
 
     /// Extract prompts from JSON value
-    fn extract_prompts_from_json(&self, value: &serde_json::Value, prompts: &mut HashMap<String, String>) {
+    fn extract_prompts_from_json(
+        &self,
+        value: &serde_json::Value,
+        prompts: &mut HashMap<String, String>,
+    ) {
         if let serde_json::Value::Object(map) = value {
             for (key, val) in map {
                 if key.contains("prompt") || key.contains("template") {
@@ -254,7 +283,11 @@ impl AgentContextProvider {
     }
 
     /// Extract prompts from YAML value
-    fn extract_prompts_from_yaml(&self, value: &serde_yaml::Value, prompts: &mut HashMap<String, String>) {
+    fn extract_prompts_from_yaml(
+        &self,
+        value: &serde_yaml::Value,
+        prompts: &mut HashMap<String, String>,
+    ) {
         if let serde_yaml::Value::Mapping(map) = value {
             for (key, val) in map {
                 if let serde_yaml::Value::String(key_str) = key {

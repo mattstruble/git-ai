@@ -27,8 +27,9 @@ impl ContextCache {
 
         // Ensure cache directory exists
         if !cache_dir.exists() {
-            std::fs::create_dir_all(&cache_dir)
-                .with_context(|| format!("Failed to create cache directory: {}", cache_dir.display()))?;
+            std::fs::create_dir_all(&cache_dir).with_context(|| {
+                format!("Failed to create cache directory: {}", cache_dir.display())
+            })?;
         }
 
         Ok(Self { cache_dir })
@@ -43,7 +44,8 @@ impl ContextCache {
         }
 
         // Read and deserialize cache entry
-        let content = fs::read_to_string(&cache_file).await
+        let content = fs::read_to_string(&cache_file)
+            .await
             .with_context(|| format!("Failed to read cache file: {}", cache_file.display()))?;
 
         let entry: CacheEntry = serde_json::from_str(&content)
@@ -72,10 +74,11 @@ impl ContextCache {
             expires_at: self.get_expiry_time(context_type),
         };
 
-        let content = serde_json::to_string_pretty(&entry)
-            .context("Failed to serialize cache entry")?;
+        let content =
+            serde_json::to_string_pretty(&entry).context("Failed to serialize cache entry")?;
 
-        fs::write(&cache_file, content).await
+        fs::write(&cache_file, content)
+            .await
             .with_context(|| format!("Failed to write cache file: {}", cache_file.display()))?;
 
         Ok(())
@@ -86,8 +89,9 @@ impl ContextCache {
     pub async fn clear_type(&self, context_type: ContextType) -> Result<()> {
         let cache_file = self.cache_file_path(context_type);
         if cache_file.exists() {
-            fs::remove_file(&cache_file).await
-                .with_context(|| format!("Failed to remove cache file: {}", cache_file.display()))?;
+            fs::remove_file(&cache_file).await.with_context(|| {
+                format!("Failed to remove cache file: {}", cache_file.display())
+            })?;
         }
         Ok(())
     }
@@ -96,8 +100,12 @@ impl ContextCache {
     #[allow(dead_code)]
     pub async fn clear_all(&self) -> Result<()> {
         if self.cache_dir.exists() {
-            let mut dir = fs::read_dir(&self.cache_dir).await
-                .with_context(|| format!("Failed to read cache directory: {}", self.cache_dir.display()))?;
+            let mut dir = fs::read_dir(&self.cache_dir).await.with_context(|| {
+                format!(
+                    "Failed to read cache directory: {}",
+                    self.cache_dir.display()
+                )
+            })?;
 
             while let Some(entry) = dir.next_entry().await? {
                 if entry.file_type().await?.is_file() {
@@ -150,8 +158,7 @@ impl ContextCache {
     /// Get the cache directory path
     fn get_cache_dir() -> Result<PathBuf> {
         // First try to find .git directory
-        let git_dir = Self::find_git_dir()
-            .unwrap_or_else(|| PathBuf::from(".git"));
+        let git_dir = Self::find_git_dir().unwrap_or_else(|| PathBuf::from(".git"));
 
         Ok(git_dir.join("git-ai").join("context-cache"))
     }
@@ -214,7 +221,9 @@ impl ContextCache {
             .ok()
             .and_then(|output| {
                 if output.status.success() {
-                    String::from_utf8(output.stdout).ok().map(|s| s.trim().to_string())
+                    String::from_utf8(output.stdout)
+                        .ok()
+                        .map(|s| s.trim().to_string())
                 } else {
                     None
                 }

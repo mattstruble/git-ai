@@ -1,6 +1,7 @@
 use crate::cli::args::ConfigArgs;
 use crate::commands::Command;
 use crate::config::Config;
+use crate::context::{ContextManager, ContextType};
 use crate::cursor_agent::CursorAgent;
 use anyhow::Result;
 use std::path::PathBuf;
@@ -27,8 +28,18 @@ impl Command for ConfigCommand {
         args
     }
 
-    async fn execute(&self, args: ConfigArgs, _agent: &CursorAgent) -> Result<()> {
-        // Config command doesn't need cursor-agent
+    fn required_context(&self) -> Vec<ContextType> {
+        // Config command doesn't need any context
+        vec![]
+    }
+
+    async fn execute(
+        &self,
+        args: ConfigArgs,
+        _agent: &CursorAgent,
+        _context_manager: &ContextManager,
+    ) -> Result<()> {
+        // Config command doesn't need cursor-agent or context
         self.handle_config(args.show, args.init)
     }
 }

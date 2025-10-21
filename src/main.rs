@@ -1,6 +1,7 @@
 mod cli;
 mod commands;
 mod config;
+mod context;
 mod cursor_agent;
 
 use anyhow::Result;
@@ -197,7 +198,7 @@ async fn main() -> Result<()> {
         println!("🔧 Executing git-ai command...");
     }
 
-    let dispatcher = cli::CommandDispatcher::new(config);
+    let dispatcher = cli::CommandDispatcher::new(config)?;
     dispatcher.dispatch(cli.command).await?;
 
     Ok(())

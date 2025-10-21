@@ -1,6 +1,7 @@
 use crate::cli::args::PrArgs;
 use crate::commands::Command;
 use crate::config::PrConfig;
+use crate::context::{apply_context, ContextManager, ContextType};
 use crate::cursor_agent::CursorAgent;
 use anyhow::Result;
 
@@ -62,23 +63,41 @@ impl Command for PrCommand {
         args
     }
 
-    async fn execute(&self, args: PrArgs, agent: &CursorAgent) -> Result<()> {
-        // Use the template with custom message if provided
-        let mut prompt = self.prompt_template().to_string();
+    fn required_context(&self) -> Vec<ContextType> {
+        vec![
+            ContextType::Git,
+            ContextType::Agent,
+            ContextType::Interaction,
+        ]
+    }
 
-        if let Some(ref message) = args.common.message {
-            prompt = format!("{}\n\nUser context: {}", prompt, message);
-        }
+    async fn execute(
+        &self,
+        args: PrArgs,
+        agent: &CursorAgent,
+        context_manager: &ContextManager,
+    ) -> Result<()> {
+        // Build base prompt with custom message if provided
+        let base_prompt = if let Some(ref message) = args.common.message {
+            format!("{}\n\nUser context: {}", self.prompt_template(), message)
+        } else {
+            self.prompt_template().to_string()
+        };
+
+        // Gather context and apply to prompt
+        let required_context = self.required_context();
+        let context_bundle = context_manager.gather_context(&required_context).await?;
+        let enhanced_prompt = apply_context(&base_prompt, &context_bundle)?;
 
         if args.common.dry_run {
             println!("🔍 Dry run mode - would execute with prompt:");
             println!("---");
-            println!("{}", prompt);
+            println!("{}", enhanced_prompt);
             println!("---");
             return Ok(());
         }
 
-        // Use shared cursor-agent service
-        agent.execute(&prompt, args.no_confirm).await
+        // Execute with cursor-agent
+        agent.execute(&enhanced_prompt, args.no_confirm).await
     }
 }

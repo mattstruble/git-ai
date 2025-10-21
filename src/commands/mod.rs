@@ -12,6 +12,7 @@ pub use init::InitCommand;
 pub use merge::MergeCommand;
 pub use pr::PrCommand;
 
+use crate::context::{ContextManager, ContextType};
 use crate::cursor_agent::CursorAgent;
 use anyhow::Result;
 
@@ -26,6 +27,14 @@ pub trait Command {
     /// Apply config overrides to CLI arguments
     fn resolve_args(&self, args: Self::Args) -> Self::Args;
 
-    /// Execute the command with resolved arguments
-    async fn execute(&self, args: Self::Args, agent: &CursorAgent) -> Result<()>;
+    /// Specify which context types this command requires
+    fn required_context(&self) -> Vec<ContextType>;
+
+    /// Execute the command with resolved arguments and context manager
+    async fn execute(
+        &self,
+        args: Self::Args,
+        agent: &CursorAgent,
+        context_manager: &ContextManager,
+    ) -> Result<()>;
 }

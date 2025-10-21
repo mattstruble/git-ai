@@ -4,6 +4,7 @@ use crate::commands::{
     Command, CommitCommand, ConfigCommand, IgnoreCommand, InitCommand, MergeCommand, PrCommand,
 };
 use crate::config::Config;
+use crate::context::ContextManager;
 use crate::cursor_agent::CursorAgent;
 use crate::{Commands, IgnoreAction};
 use anyhow::Result;
@@ -13,14 +14,17 @@ use args::{CommitArgs, CommonArgs, ConfigArgs, IgnoreArgs, InitArgs, MergeArgs, 
 pub struct CommandDispatcher {
     config: Config,
     agent: CursorAgent,
+    context_manager: ContextManager,
 }
 
 impl CommandDispatcher {
-    pub fn new(config: Config) -> Self {
-        Self {
+    pub fn new(config: Config) -> Result<Self> {
+        let context_manager = ContextManager::new()?;
+        Ok(Self {
             config,
             agent: CursorAgent::new(),
-        }
+            context_manager,
+        })
     }
 
     pub async fn dispatch(&self, command: Commands) -> Result<()> {
@@ -35,13 +39,15 @@ impl CommandDispatcher {
                     common: CommonArgs {
                         dry_run,
                         verbose,
-                        message,
+                        message: message.clone(),
                     },
                     no_confirm,
                 };
                 let cmd = CommitCommand::new(self.config.commands.commit.clone());
                 let resolved_args = cmd.resolve_args(args);
-                cmd.execute(resolved_args, &self.agent).await
+
+                cmd.execute(resolved_args, &self.agent, &self.context_manager)
+                    .await
             }
             Commands::Pr {
                 message,
@@ -53,13 +59,15 @@ impl CommandDispatcher {
                     common: CommonArgs {
                         dry_run,
                         verbose,
-                        message,
+                        message: message.clone(),
                     },
                     no_confirm,
                 };
                 let cmd = PrCommand::new(self.config.commands.pr.clone());
                 let resolved_args = cmd.resolve_args(args);
-                cmd.execute(resolved_args, &self.agent).await
+
+                cmd.execute(resolved_args, &self.agent, &self.context_manager)
+                    .await
             }
             Commands::Merge {
                 branch,
@@ -72,19 +80,21 @@ impl CommandDispatcher {
                     common: CommonArgs {
                         dry_run,
                         verbose,
-                        message,
+                        message: message.clone(),
                     },
-                    branch,
+                    branch: branch.clone(),
                     no_confirm,
                 };
                 let cmd = MergeCommand::new(self.config.commands.merge.clone());
                 let resolved_args = cmd.resolve_args(args);
-                cmd.execute(resolved_args, &self.agent).await
+
+                cmd.execute(resolved_args, &self.agent, &self.context_manager)
+                    .await
             }
             Commands::Config { show, init } => {
                 let args = ConfigArgs { show, init };
                 let cmd = ConfigCommand::new();
-                cmd.execute(args, &self.agent).await
+                cmd.execute(args, &self.agent, &self.context_manager).await
             }
             Commands::Init {
                 language,
@@ -98,15 +108,17 @@ impl CommandDispatcher {
                     common: CommonArgs {
                         dry_run,
                         verbose,
-                        message,
+                        message: message.clone(),
                     },
-                    language,
-                    name,
+                    language: language.clone(),
+                    name: name.clone(),
                     no_confirm,
                 };
                 let cmd = InitCommand::new(self.config.commands.init.clone());
                 let resolved_args = cmd.resolve_args(args);
-                cmd.execute(resolved_args, &self.agent).await
+
+                cmd.execute(resolved_args, &self.agent, &self.context_manager)
+                    .await
             }
             Commands::Ignore { action } => {
                 let (action_str, languages, no_confirm, dry_run, verbose) = match action {
@@ -126,14 +138,16 @@ impl CommandDispatcher {
 
                 let args = IgnoreArgs {
                     action: action_str.to_string(),
-                    languages,
+                    languages: languages.clone(),
                     no_confirm,
                     dry_run,
                     verbose,
                 };
                 let cmd = IgnoreCommand::new(self.config.commands.ignore.clone());
                 let resolved_args = cmd.resolve_args(args);
-                cmd.execute(resolved_args, &self.agent).await
+
+                cmd.execute(resolved_args, &self.agent, &self.context_manager)
+                    .await
             }
         }
     }

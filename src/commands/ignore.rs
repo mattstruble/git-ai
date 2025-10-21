@@ -1,6 +1,7 @@
 use crate::cli::args::IgnoreArgs;
 use crate::commands::Command;
 use crate::config::IgnoreConfig;
+use crate::context::{apply_context, ContextManager, ContextType};
 use crate::cursor_agent::CursorAgent;
 use anyhow::Result;
 
@@ -90,7 +91,20 @@ impl Command for IgnoreCommand {
         args
     }
 
-    async fn execute(&self, args: IgnoreArgs, agent: &CursorAgent) -> Result<()> {
+    fn required_context(&self) -> Vec<ContextType> {
+        vec![
+            ContextType::Project,
+            ContextType::Agent,
+            ContextType::Interaction,
+        ]
+    }
+
+    async fn execute(
+        &self,
+        args: IgnoreArgs,
+        agent: &CursorAgent,
+        context_manager: &ContextManager,
+    ) -> Result<()> {
         let mut prompt = self.prompt_template().to_string();
 
         // Add action context
@@ -102,16 +116,21 @@ impl Command for IgnoreCommand {
             prompt = format!("{}\n\nLanguages/Tools: {}", prompt, languages_str);
         }
 
+        // Gather context and apply to prompt
+        let required_context = self.required_context();
+        let context_bundle = context_manager.gather_context(&required_context).await?;
+        let enhanced_prompt = apply_context(&prompt, &context_bundle)?;
+
         // Handle dry run
         if args.dry_run {
-            println!(
-                "🔍 Dry run mode - would execute with prompt:\n---\n{}\n---",
-                prompt
-            );
+            println!("🔍 Dry run mode - would execute with prompt:");
+            println!("---");
+            println!("{}", enhanced_prompt);
+            println!("---");
             return Ok(());
         }
 
         // Execute with cursor-agent
-        agent.execute(&prompt, args.no_confirm).await
+        agent.execute(&enhanced_prompt, args.no_confirm).await
     }
 }

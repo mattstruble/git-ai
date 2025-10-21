@@ -23,7 +23,10 @@ impl GitContextProvider {
             .context("Failed to execute git status")?;
 
         if !output.status.success() {
-            anyhow::bail!("git status failed: {}", String::from_utf8_lossy(&output.stderr));
+            anyhow::bail!(
+                "git status failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
 
         let status_output = str::from_utf8(&output.stdout)?;
@@ -43,9 +46,11 @@ impl GitContextProvider {
             let file_path = &line[3..];
 
             // Check for conflicts
-            if staged_status == 'U' || unstaged_status == 'U' ||
-               (staged_status == 'A' && unstaged_status == 'A') ||
-               (staged_status == 'D' && unstaged_status == 'D') {
+            if staged_status == 'U'
+                || unstaged_status == 'U'
+                || (staged_status == 'A' && unstaged_status == 'A')
+                || (staged_status == 'D' && unstaged_status == 'D')
+            {
                 has_conflicts = true;
             }
 
@@ -74,7 +79,8 @@ impl GitContextProvider {
             }
         }
 
-        let is_clean = staged_files.is_empty() && unstaged_files.is_empty() && untracked_files.is_empty();
+        let is_clean =
+            staged_files.is_empty() && unstaged_files.is_empty() && untracked_files.is_empty();
 
         Ok(RepositoryStatus {
             staged_files,
@@ -114,7 +120,10 @@ impl GitContextProvider {
             .context("Failed to execute git diff")?;
 
         if !output.status.success() {
-            anyhow::bail!("git diff failed: {}", String::from_utf8_lossy(&output.stderr));
+            anyhow::bail!(
+                "git diff failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
 
         Ok(String::from_utf8(output.stdout)?)
@@ -161,7 +170,10 @@ impl GitContextProvider {
             .context("Failed to execute git log")?;
 
         if !output.status.success() {
-            anyhow::bail!("git log failed: {}", String::from_utf8_lossy(&output.stderr));
+            anyhow::bail!(
+                "git log failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
 
         let log_output = String::from_utf8(output.stdout)?;
@@ -217,7 +229,9 @@ impl GitContextProvider {
 
         // Get ahead/behind counts
         let (ahead, behind) = if let Some(ref upstream) = upstream_branch {
-            self.get_ahead_behind_counts(&current_branch, upstream).await.unwrap_or((0, 0))
+            self.get_ahead_behind_counts(&current_branch, upstream)
+                .await
+                .unwrap_or((0, 0))
         } else {
             (0, 0)
         };
@@ -247,7 +261,10 @@ impl GitContextProvider {
             .context("Failed to get current branch")?;
 
         if !output.status.success() {
-            anyhow::bail!("Failed to get current branch: {}", String::from_utf8_lossy(&output.stderr));
+            anyhow::bail!(
+                "Failed to get current branch: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
 
         Ok(String::from_utf8(output.stdout)?.trim().to_string())
@@ -270,7 +287,12 @@ impl GitContextProvider {
     /// Get ahead/behind counts
     async fn get_ahead_behind_counts(&self, local: &str, upstream: &str) -> Result<(u32, u32)> {
         let output = Command::new("git")
-            .args(["rev-list", "--left-right", "--count", &format!("{}...{}", upstream, local)])
+            .args([
+                "rev-list",
+                "--left-right",
+                "--count",
+                &format!("{}...{}", upstream, local),
+            ])
             .output()
             .context("Failed to get ahead/behind counts")?;
 
@@ -279,7 +301,7 @@ impl GitContextProvider {
         }
 
         let output_str = String::from_utf8(output.stdout)?;
-        let parts: Vec<&str> = output_str.trim().split_whitespace().collect();
+        let parts: Vec<&str> = output_str.split_whitespace().collect();
 
         if parts.len() == 2 {
             let behind = parts[0].parse().unwrap_or(0);
@@ -298,7 +320,9 @@ impl GitContextProvider {
             .ok()
             .and_then(|output| {
                 if output.status.success() {
-                    String::from_utf8(output.stdout).ok().map(|s| s.trim().to_string())
+                    String::from_utf8(output.stdout)
+                        .ok()
+                        .map(|s| s.trim().to_string())
                 } else {
                     None
                 }
@@ -310,7 +334,9 @@ impl GitContextProvider {
             .ok()
             .and_then(|output| {
                 if output.status.success() {
-                    String::from_utf8(output.stdout).ok().map(|s| s.trim().to_string())
+                    String::from_utf8(output.stdout)
+                        .ok()
+                        .map(|s| s.trim().to_string())
                 } else {
                     None
                 }
@@ -350,15 +376,13 @@ impl GitContextProvider {
             .args(["rev-parse", "--is-bare-repository"])
             .output()
             .map(|output| {
-                output.status.success() &&
-                String::from_utf8(output.stdout).unwrap_or_default().trim() == "true"
+                output.status.success()
+                    && String::from_utf8(output.stdout).unwrap_or_default().trim() == "true"
             })
             .unwrap_or(false);
 
         // Get remote URLs
-        let remotes_output = Command::new("git")
-            .args(["remote", "-v"])
-            .output();
+        let remotes_output = Command::new("git").args(["remote", "-v"]).output();
 
         let mut remote_urls = Vec::new();
         if let Ok(output) = remotes_output {

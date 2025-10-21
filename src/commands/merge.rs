@@ -1,6 +1,7 @@
 use crate::cli::args::MergeArgs;
 use crate::commands::Command;
 use crate::config::MergeConfig;
+use crate::context::{apply_context, ContextManager, ContextType};
 use crate::cursor_agent::CursorAgent;
 use anyhow::Result;
 
@@ -71,23 +72,41 @@ impl Command for MergeCommand {
         args
     }
 
-    async fn execute(&self, args: MergeArgs, agent: &CursorAgent) -> Result<()> {
-        // Use the template with branch substitution and custom message
+    fn required_context(&self) -> Vec<ContextType> {
+        vec![
+            ContextType::Git,
+            ContextType::Agent,
+            ContextType::Interaction,
+        ]
+    }
+
+    async fn execute(
+        &self,
+        args: MergeArgs,
+        agent: &CursorAgent,
+        context_manager: &ContextManager,
+    ) -> Result<()> {
+        // Build base prompt with branch substitution and custom message
         let mut prompt = self.prompt_template().replace("{}", &args.branch);
 
         if let Some(ref message) = args.common.message {
             prompt = format!("{}\n\nUser context: {}", prompt, message);
         }
 
+        // Gather context and apply to prompt
+        let required_context = self.required_context();
+        let context_bundle = context_manager.gather_context(&required_context).await?;
+        let enhanced_prompt = apply_context(&prompt, &context_bundle)?;
+
         if args.common.dry_run {
             println!("🔍 Dry run mode - would execute with prompt:");
             println!("---");
-            println!("{}", prompt);
+            println!("{}", enhanced_prompt);
             println!("---");
             return Ok(());
         }
 
-        // Use shared cursor-agent service
-        agent.execute(&prompt, args.no_confirm).await
+        // Execute with cursor-agent
+        agent.execute(&enhanced_prompt, args.no_confirm).await
     }
 }

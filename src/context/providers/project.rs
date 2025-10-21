@@ -27,7 +27,7 @@ impl ProjectContextProvider {
         // Use ignore crate to respect .gitignore
         let walker = WalkBuilder::new(&root)
             .hidden(false) // Include hidden files/dirs
-            .ignore(true)  // Respect .ignore files
+            .ignore(true) // Respect .ignore files
             .git_ignore(true) // Respect .gitignore
             .git_exclude(true) // Respect .git/info/exclude
             .build();
@@ -55,17 +55,19 @@ impl ProjectContextProvider {
                         .to_string();
 
                     let metadata = entry.metadata().ok();
-                    let size = metadata.as_ref().and_then(|m| {
-                        if m.is_file() {
-                            Some(m.len())
-                        } else {
-                            None
-                        }
-                    });
+                    let size =
+                        metadata.as_ref().and_then(
+                            |m| {
+                                if m.is_file() {
+                                    Some(m.len())
+                                } else {
+                                    None
+                                }
+                            },
+                        );
 
-                    let modified = metadata.and_then(|m| {
-                        m.modified().ok().map(|t| chrono::DateTime::<chrono::Utc>::from(t))
-                    });
+                    let modified = metadata
+                        .and_then(|m| m.modified().ok().map(chrono::DateTime::<chrono::Utc>::from));
 
                     let entry_type = if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
                         EntryType::Directory
@@ -157,10 +159,7 @@ impl ProjectContextProvider {
 
     /// Calculate total size of tracked files
     fn calculate_total_size(&self, tree: &DirectoryTree) -> u64 {
-        tree.entries
-            .iter()
-            .filter_map(|entry| entry.size)
-            .sum()
+        tree.entries.iter().filter_map(|entry| entry.size).sum()
     }
 
     /// Count total files

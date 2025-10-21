@@ -1,6 +1,7 @@
 use crate::cli::args::CommitArgs;
 use crate::commands::Command;
 use crate::config::CommitConfig;
+use crate::context::{apply_context, ContextData, ContextManager, ContextType};
 use crate::cursor_agent::CursorAgent;
 use anyhow::Result;
 
@@ -72,23 +73,100 @@ impl Command for CommitCommand {
         args
     }
 
-    async fn execute(&self, args: CommitArgs, agent: &CursorAgent) -> Result<()> {
-        // Use the template with custom message if provided
-        let mut prompt = self.prompt_template().to_string();
+    fn required_context(&self) -> Vec<ContextType> {
+        vec![
+            ContextType::Git,
+            ContextType::Agent,
+            ContextType::Interaction,
+        ]
+    }
 
-        if let Some(ref message) = args.common.message {
-            prompt = format!("{}\n\nUser context: {}", prompt, message);
+    async fn execute(
+        &self,
+        args: CommitArgs,
+        agent: &CursorAgent,
+        context_manager: &ContextManager,
+    ) -> Result<()> {
+        // Build base prompt with custom message if provided
+        let base_prompt = if let Some(ref message) = args.common.message {
+            format!("{}\n\nUser context: {}", self.prompt_template(), message)
+        } else {
+            self.prompt_template().to_string()
+        };
+
+        // Gather context and apply business logic
+        let required_context = self.required_context();
+        let context_bundle = context_manager.gather_context(&required_context).await?;
+
+        // Check git context for staged files
+        if let Some(ContextData::Git(git_context)) = context_bundle.get(ContextType::Git) {
+            let staged_files = &git_context.repository_status.staged_files;
+            let unstaged_files = &git_context.repository_status.unstaged_files;
+
+            // Warn user if no staged files but there are unstaged files
+            if staged_files.is_empty() && !unstaged_files.is_empty() {
+                println!(
+                    "\x1b[33m⚠️  No staged files found, but there are unstaged changes.\x1b[0m"
+                );
+                println!(
+                    "\x1b[36m   Consider staging files first with: \x1b[1mgit add <files>\x1b[0m"
+                );
+                println!(
+                    "\x1b[90m   Unstaged files ({}):\x1b[0m",
+                    unstaged_files.len()
+                );
+                for file in unstaged_files.iter().take(5) {
+                    println!(
+                        "     \x1b[31m{}\x1b[0m \x1b[37m{}\x1b[0m",
+                        file.status, file.path
+                    );
+                }
+                if unstaged_files.len() > 5 {
+                    println!(
+                        "     \x1b[90m... and {} more\x1b[0m",
+                        unstaged_files.len() - 5
+                    );
+                }
+                println!();
+
+                // Ask user if they want to continue
+                if !args.no_confirm {
+                    print!("\x1b[33mContinue with unstaged files? [y/N]: \x1b[0m");
+                    use std::io::{self, Write};
+                    io::stdout().flush()?;
+
+                    let mut input = String::new();
+                    io::stdin().read_line(&mut input)?;
+
+                    if !input.trim().to_lowercase().starts_with('y') {
+                        println!("\x1b[31mAborted. Stage files and try again.\x1b[0m");
+                        return Ok(());
+                    }
+                }
+            }
+
+            // Warn if there are no changes at all
+            if staged_files.is_empty()
+                && unstaged_files.is_empty()
+                && git_context.repository_status.untracked_files.is_empty()
+            {
+                println!("\x1b[34mℹ️  No changes detected in the repository.\x1b[0m");
+                println!("\x1b[90m   Repository is clean - nothing to commit.\x1b[0m");
+                return Ok(());
+            }
         }
+
+        // Apply context to prompt and execute
+        let enhanced_prompt = apply_context(&base_prompt, &context_bundle)?;
 
         if args.common.dry_run {
             println!("🔍 Dry run mode - would execute with prompt:");
             println!("---");
-            println!("{}", prompt);
+            println!("{}", enhanced_prompt);
             println!("---");
             return Ok(());
         }
 
-        // Use shared cursor-agent service
-        agent.execute(&prompt, args.no_confirm).await
+        agent.execute(&enhanced_prompt, args.no_confirm).await
     }
 }

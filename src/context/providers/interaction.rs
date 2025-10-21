@@ -98,7 +98,10 @@ impl ContextProvider for InteractionContextProvider {
         let execution_metadata = self.create_execution_metadata().await;
 
         let interaction_context = InteractionContext {
-            command: self.command.clone().unwrap_or_else(|| "unknown".to_string()),
+            command: self
+                .command
+                .clone()
+                .unwrap_or_else(|| "unknown".to_string()),
             user_message: self.user_message.clone(),
             flags: self.flags.clone(),
             execution_metadata,
