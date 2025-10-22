@@ -134,6 +134,21 @@ impl ContextManager {
 
         // Cache miss or needs refresh - fetch fresh data
         if let Some(provider) = self.providers.get(&context_type) {
+            // Log when we're rebuilding Project context due to documentation changes
+            if context_type == ContextType::Project && needs_refresh {
+                let doc_files = provider.get_file_dependencies();
+                if !doc_files.is_empty() {
+                    if self
+                        .file_hash_tracker
+                        .files_changed(&doc_files)
+                        .await
+                        .unwrap_or(true)
+                    {
+                        println!("📄 Documentation files changed - rebuilding project context...");
+                    }
+                }
+            }
+
             let fresh_data = provider.gather().await?;
 
             // Update file hashes for file-based contexts

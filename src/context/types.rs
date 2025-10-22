@@ -8,7 +8,7 @@ use std::path::PathBuf;
 pub enum ContextType {
     /// Git repository context (status, diffs, commits, branches)
     Git,
-    /// Project structure context (directory tree, file analysis)
+    /// Project context (README, docs, project metadata)
     Project,
     /// Agent configuration context (.cursoragent files)
     Agent,
@@ -155,9 +155,64 @@ pub struct RepositoryMetadata {
     pub remote_urls: Vec<String>,
 }
 
-/// Project structure context
+/// Project context with AI-processed project metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectContext {
+    pub project: ProjectInfo,
+    pub usage: UsageInfo,
+    pub development: DevelopmentInfo,
+    pub breaking_changes: BreakingChangesInfo,
+    pub conventions: ConventionsInfo,
+    pub misc: MiscInfo,
+    pub doc_files: Vec<String>, // List of documentation files processed
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectInfo {
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub primary_language: Option<String>,
+    pub keywords: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UsageInfo {
+    pub commands: Vec<String>,
+    pub examples: Vec<String>,
+    pub configuration: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DevelopmentInfo {
+    pub setup_steps: Vec<String>,
+    pub dependencies: Vec<String>,
+    pub testing: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BreakingChangesInfo {
+    pub rules: Vec<String>,
+    pub indicators: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConventionsInfo {
+    pub commit_style: Option<String>,
+    pub branching: Option<String>,
+    pub release_process: Option<String>,
+    pub docs_reference: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MiscInfo {
+    pub notable_designs: Vec<String>,
+    pub important_files: Vec<String>,
+    pub security_notes: Vec<String>,
+}
+
+/// Repository structure context
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RepositoryContext {
     pub directory_tree: String,
     pub dependency_files: HashMap<String, String>, // filename -> content
     pub file_counts: HashMap<String, u32>,         // extension -> count
