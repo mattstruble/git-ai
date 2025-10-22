@@ -36,16 +36,79 @@ impl ContextManager {
         Ok(Self { cache, providers })
     }
 
-    /// Gather specified context types, using cache when possible
-    pub async fn gather_context(&self, required_types: &[ContextType]) -> Result<ContextBundle> {
+    /// Gather specified context types with command information
+    pub async fn gather_context_with_command(
+        &self,
+        required_types: &[ContextType],
+        command: Option<String>,
+    ) -> Result<ContextBundle> {
         let mut contexts = HashMap::new();
 
         for context_type in required_types {
-            let context_data = self.get_or_fetch_context(*context_type).await?;
+            let context_data = if *context_type == ContextType::Interaction {
+                // Create interaction provider with command info
+                let interaction_provider = if let Some(ref cmd) = command {
+                    InteractionContextProvider::with_command(cmd.clone())
+                } else {
+                    InteractionContextProvider::new()
+                };
+                interaction_provider.gather().await?
+            } else {
+                self.get_or_fetch_context(*context_type).await?
+            };
             contexts.insert(*context_type, context_data);
         }
 
-        Ok(ContextBundle::new(contexts))
+        let mut bundle = ContextBundle::new(contexts);
+
+        // Populate git hashes for cache invalidation
+        if let Ok((git_hash, working_tree_hash)) = self.get_git_hashes().await {
+            bundle.git_hash = git_hash;
+            bundle.working_tree_hash = working_tree_hash;
+        }
+
+        Ok(bundle)
+    }
+
+    /// Gather specified context types, using cache when possible
+    #[allow(dead_code)]
+    pub async fn gather_context(&self, required_types: &[ContextType]) -> Result<ContextBundle> {
+        self.gather_context_with_command(required_types, None).await
+    }
+
+    /// Get current git commit hash and working tree hash
+    async fn get_git_hashes(&self) -> Result<(Option<String>, Option<String>)> {
+        // Get commit hash
+        let commit_hash = std::process::Command::new("git")
+            .args(["rev-parse", "HEAD"])
+            .output()
+            .ok()
+            .and_then(|output| {
+                if output.status.success() {
+                    String::from_utf8(output.stdout)
+                        .ok()
+                        .map(|s| s.trim().to_string())
+                } else {
+                    None
+                }
+            });
+
+        // Get working tree hash (based on index and working directory state)
+        let working_tree_hash = std::process::Command::new("git")
+            .args(["status", "--porcelain=v1"])
+            .output()
+            .ok()
+            .and_then(|output| {
+                if output.status.success() {
+                    let status_output = String::from_utf8(output.stdout).ok()?;
+                    // Create a simple hash of the status output
+                    Some(format!("{:x}", md5::compute(status_output.as_bytes())))
+                } else {
+                    None
+                }
+            });
+
+        Ok((commit_hash, working_tree_hash))
     }
 
     /// Get context from cache or fetch fresh if needed
