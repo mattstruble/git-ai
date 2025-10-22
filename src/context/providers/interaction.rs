@@ -3,6 +3,7 @@ use crate::context::{
 };
 use anyhow::Result;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::process::Command;
 
 /// Interaction context provider
@@ -118,5 +119,10 @@ impl ContextProvider for InteractionContextProvider {
         // Interaction context should always be fresh since it represents
         // the current command execution
         Ok(true)
+    }
+
+    fn get_file_dependencies(&self) -> Vec<PathBuf> {
+        // Interaction context doesn't depend on files - it's always fresh
+        vec![]
     }
 }

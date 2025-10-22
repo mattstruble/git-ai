@@ -3,6 +3,7 @@ use crate::context::{
     GitDiffs, RepositoryMetadata, RepositoryStatus, UserContext,
 };
 use anyhow::{Context, Result};
+use std::path::PathBuf;
 use std::process::Command;
 use std::str;
 
@@ -480,5 +481,11 @@ impl ContextProvider for GitContextProvider {
         // Git context should always be refreshed for accuracy
         // The caching system handles git hash-based invalidation
         Ok(true)
+    }
+
+    fn get_file_dependencies(&self) -> Vec<PathBuf> {
+        // Git context doesn't depend on specific files, it uses git commands
+        // So we return empty - it will use git hash-based invalidation instead
+        vec![]
     }
 }

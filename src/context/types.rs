@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 /// Types of context that can be gathered
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -28,6 +29,10 @@ pub trait ContextProvider: Send + Sync {
     /// Check if context should be refreshed based on current state
     #[allow(dead_code)]
     async fn should_refresh(&self, cached_data: &ContextData) -> Result<bool>;
+
+    /// Get file dependencies for this context provider
+    /// Returns paths to files that this context depends on for cache invalidation
+    fn get_file_dependencies(&self) -> Vec<PathBuf>;
 }
 
 /// Container for all context data with serialization support
@@ -153,34 +158,12 @@ pub struct RepositoryMetadata {
 /// Project structure context
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectContext {
-    pub directory_tree: DirectoryTree,
-    pub file_counts: HashMap<String, u32>, // extension -> count
+    pub directory_tree: String,
+    pub dependency_files: HashMap<String, String>, // filename -> content
+    pub file_counts: HashMap<String, u32>,         // extension -> count
     pub recently_changed_files: Vec<String>,
     pub total_files: u32,
     pub total_size: u64,
-}
-
-/// Directory tree representation
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DirectoryTree {
-    pub root: String,
-    pub entries: Vec<TreeEntry>,
-}
-
-/// Tree entry (file or directory)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TreeEntry {
-    pub path: String,
-    pub name: String,
-    pub entry_type: EntryType,
-    pub size: Option<u64>,
-    pub modified: Option<chrono::DateTime<chrono::Utc>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum EntryType {
-    File,
-    Directory,
 }
 
 /// Agent configuration context

@@ -3,7 +3,7 @@ use crate::context::{
 };
 use anyhow::Result;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 /// Agent context provider for .cursoragent and related config files
@@ -326,5 +326,41 @@ impl ContextProvider for AgentContextProvider {
         // Agent configuration changes infrequently, so we can cache it longer
         // The cache system will handle time-based expiry
         Ok(false)
+    }
+
+    fn get_file_dependencies(&self) -> Vec<PathBuf> {
+        // Return paths to agent configuration files that this context depends on
+        let mut files = Vec::new();
+
+        // Common cursor-agent config locations in current directory
+        let config_paths = [".cursor-agent", ".aiconfig", ".cursorignore"];
+
+        for path in &config_paths {
+            let path_buf = PathBuf::from(path);
+            if path_buf.exists() {
+                files.push(path_buf);
+            }
+        }
+
+        // Also check home directory for global config files
+        if let Some(home_dir) = dirs::home_dir() {
+            let global_paths = [
+                ".cursor/argv.json",
+                ".cursor/cli-config.json",
+                ".cursor/extensions/extensions.json",
+                ".cursor/ide_state.json",
+                ".cursor/prompt_history.json",
+                ".cursor/unified_repo_list.json",
+            ];
+
+            for path in &global_paths {
+                let path_buf = home_dir.join(path);
+                if path_buf.exists() {
+                    files.push(path_buf);
+                }
+            }
+        }
+
+        files
     }
 }
