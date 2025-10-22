@@ -2,31 +2,38 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Deserialize, Serialize, Default)]
-pub struct Config {
-    #[serde(default)]
-    pub behavior: BehaviorConfig,
-
-    #[serde(default)]
-    pub commands: CommandConfigs,
-}
-
 #[derive(Debug, Deserialize, Serialize)]
-pub struct BehaviorConfig {
-    #[serde(default = "default_verbose")]
-    pub verbose: bool,
+pub struct Config {
+    pub behavior: BehaviorConfig,
+    pub commands: CommandConfigs,
+    pub project: ProjectConfig,
 }
 
-impl Default for BehaviorConfig {
+impl Default for Config {
     fn default() -> Self {
-        Self {
-            verbose: default_verbose(),
-        }
+        load_default_config()
     }
 }
 
-fn default_verbose() -> bool {
-    false
+/// Project-specific configuration
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ProjectConfig {
+    #[serde(default)]
+    pub dependency_files: DependencyFilesConfig,
+}
+
+/// Configuration for project dependency file patterns
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct DependencyFilesConfig {
+    pub package_managers: Option<Vec<String>>,
+    pub build_files: Option<Vec<String>>,
+    pub config_files: Option<Vec<String>>,
+    pub additional_patterns: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Default)]
+pub struct BehaviorConfig {
+    pub verbose: bool,
 }
 
 /// Configuration for individual commands
@@ -53,6 +60,7 @@ pub struct CommandConfigs {
 pub struct CommitConfig {
     pub prompt: Option<String>,
     pub no_confirm: Option<bool>,
+    pub context: Option<Vec<String>>,
 }
 
 /// Configuration for PR command
@@ -60,6 +68,7 @@ pub struct CommitConfig {
 pub struct PrConfig {
     pub prompt: Option<String>,
     pub no_confirm: Option<bool>,
+    pub context: Option<Vec<String>>,
 }
 
 /// Configuration for merge command
@@ -67,6 +76,7 @@ pub struct PrConfig {
 pub struct MergeConfig {
     pub prompt: Option<String>,
     pub no_confirm: Option<bool>,
+    pub context: Option<Vec<String>>,
 }
 
 /// Configuration for init command
@@ -74,6 +84,7 @@ pub struct MergeConfig {
 pub struct InitConfig {
     pub prompt: Option<String>,
     pub no_confirm: Option<bool>,
+    pub context: Option<Vec<String>>,
 }
 
 /// Configuration for ignore command
@@ -81,6 +92,7 @@ pub struct InitConfig {
 pub struct IgnoreConfig {
     pub prompt: Option<String>,
     pub no_confirm: Option<bool>,
+    pub context: Option<Vec<String>>,
 }
 
 impl Config {
@@ -133,43 +145,116 @@ impl Config {
 
     /// Create a sample configuration file
     pub fn create_sample_config() -> Result<String> {
-        let sample = Config {
-            behavior: BehaviorConfig { verbose: false },
-            commands: CommandConfigs {
-                commit: CommitConfig {
-                    prompt: Some(
-                        "Custom commit prompt (optional - overrides built-in prompt)".to_string(),
-                    ),
-                    no_confirm: Some(false),
-                },
-                pr: PrConfig {
-                    prompt: Some(
-                        "Custom PR prompt (optional - overrides built-in prompt)".to_string(),
-                    ),
-                    no_confirm: Some(false),
-                },
-                merge: MergeConfig {
-                    prompt: Some(
-                        "Custom merge prompt (optional - overrides built-in prompt)".to_string(),
-                    ),
-                    no_confirm: Some(false),
-                },
-                init: InitConfig {
-                    prompt: Some(
-                        "Custom init prompt (optional - overrides built-in prompt)".to_string(),
-                    ),
-                    no_confirm: Some(false),
-                },
-                ignore: IgnoreConfig {
-                    prompt: Some(
-                        "Custom ignore prompt (optional - overrides built-in prompt)".to_string(),
-                    ),
-                    no_confirm: Some(false),
-                },
-            },
-        };
+        // Start with default config and add sample customizations
+        let mut sample = load_default_config();
+
+        // Add sample custom configurations
+        sample.behavior.verbose = true;
+        sample.commands.commit.prompt =
+            Some("Custom commit prompt (optional - overrides built-in prompt)".to_string());
+        sample.commands.pr.prompt =
+            Some("Custom PR prompt (optional - overrides built-in prompt)".to_string());
+        sample.commands.merge.prompt =
+            Some("Custom merge prompt (optional - overrides built-in prompt)".to_string());
+        sample.commands.init.prompt =
+            Some("Custom init prompt (optional - overrides built-in prompt)".to_string());
+        sample.commands.ignore.prompt =
+            Some("Custom ignore prompt (optional - overrides built-in prompt)".to_string());
+
+        // Add sample project customizations
+        sample.project.dependency_files.additional_patterns = Some(vec![
+            "custom-package.json".to_string(),
+            "custom-build.sh".to_string(),
+            "custom-config.toml".to_string(),
+            "*.custom".to_string(),
+        ]);
 
         serde_yaml::to_string(&sample).context("Failed to serialize sample configuration")
+    }
+}
+
+#[allow(dead_code)]
+/// Default project dependency file patterns embedded in binary
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DefaultPatterns {
+    pub package_managers: Vec<String>,
+    pub build_files: Vec<String>,
+    pub config_files: Vec<String>,
+}
+
+impl Config {
+    #[allow(dead_code)]
+    /// Get merged dependency file patterns (default + user overrides)
+    pub fn get_dependency_patterns(&self) -> Vec<String> {
+        let mut patterns = Vec::new();
+
+        // Load default patterns
+        let default_patterns = get_default_patterns();
+        patterns.extend(default_patterns.package_managers);
+        patterns.extend(default_patterns.build_files);
+        patterns.extend(default_patterns.config_files);
+
+        // Add user patterns if configured
+        let dep_config = &self.project.dependency_files;
+
+        // User can override specific categories
+        if let Some(user_package_managers) = &dep_config.package_managers {
+            patterns.extend(user_package_managers.clone());
+        }
+        if let Some(user_build_files) = &dep_config.build_files {
+            patterns.extend(user_build_files.clone());
+        }
+        if let Some(user_config_files) = &dep_config.config_files {
+            patterns.extend(user_config_files.clone());
+        }
+        // Additional patterns extend the defaults
+        if let Some(additional) = &dep_config.additional_patterns {
+            patterns.extend(additional.clone());
+        }
+
+        // Remove duplicates
+        patterns.sort();
+        patterns.dedup();
+
+        patterns
+    }
+
+    /// Convert context string names to ContextType enums
+    pub fn parse_context_types(context_names: &[String]) -> Vec<crate::context::ContextType> {
+        context_names
+            .iter()
+            .filter_map(|name| match name.as_str() {
+                "Git" => Some(crate::context::ContextType::Git),
+                "Project" => Some(crate::context::ContextType::Project),
+                "Agent" => Some(crate::context::ContextType::Agent),
+                "Interaction" => Some(crate::context::ContextType::Interaction),
+                _ => {
+                    eprintln!("Warning: Unknown context type '{}' - ignoring", name);
+                    None
+                }
+            })
+            .collect()
+    }
+}
+
+/// Load the complete default configuration from embedded YAML
+pub fn load_default_config() -> Config {
+    // Embed the default configuration at compile time
+    const DEFAULT_CONFIG: &str = include_str!("../config/default_config.yaml");
+
+    serde_yaml::from_str(DEFAULT_CONFIG).expect("Failed to parse embedded default configuration")
+}
+
+#[allow(dead_code)]
+/// Get the default dependency file patterns (used internally)
+pub fn get_default_patterns() -> DefaultPatterns {
+    let config = load_default_config();
+    let dep_config = &config.project.dependency_files;
+
+    DefaultPatterns {
+        package_managers: dep_config.package_managers.clone().unwrap_or_default(),
+        build_files: dep_config.build_files.clone().unwrap_or_default(),
+        config_files: dep_config.config_files.clone().unwrap_or_default(),
     }
 }
 
