@@ -137,15 +137,14 @@ impl ContextManager {
             // Log when we're rebuilding Project context due to documentation changes
             if context_type == ContextType::Project && needs_refresh {
                 let doc_files = provider.get_file_dependencies();
-                if !doc_files.is_empty() {
-                    if self
+                if !doc_files.is_empty()
+                    && self
                         .file_hash_tracker
                         .files_changed(&doc_files)
                         .await
                         .unwrap_or(true)
-                    {
-                        println!("📄 Documentation files changed - rebuilding project context...");
-                    }
+                {
+                    println!("📄 Documentation files changed - rebuilding project context...");
                 }
             }
 

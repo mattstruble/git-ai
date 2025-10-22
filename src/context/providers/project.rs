@@ -101,24 +101,22 @@ impl ProjectContextProvider {
                 .hidden(false)
                 .build();
 
-            for entry in walker {
-                if let Ok(entry) = entry {
-                    let path = entry.path();
-                    if path.is_file() {
-                        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            for entry in walker.flatten() {
+                let path = entry.path();
+                if path.is_file() {
+                    let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
-                        if pattern.ends_with('*') {
-                            if file_name.starts_with(pattern_without_asterisk) {
+                    if pattern.ends_with('*') {
+                        if file_name.starts_with(pattern_without_asterisk) {
+                            doc_files.push(path.to_path_buf());
+                        }
+                    } else if pattern.contains('*') {
+                        // Handle patterns like README.*
+                        let parts: Vec<&str> = pattern.split('*').collect();
+                        if parts.len() == 2 {
+                            let prefix = parts[0];
+                            if file_name.starts_with(prefix) {
                                 doc_files.push(path.to_path_buf());
-                            }
-                        } else if pattern.contains('*') {
-                            // Handle patterns like README.*
-                            let parts: Vec<&str> = pattern.split('*').collect();
-                            if parts.len() == 2 {
-                                let prefix = parts[0];
-                                if file_name.starts_with(prefix) {
-                                    doc_files.push(path.to_path_buf());
-                                }
                             }
                         }
                     }
@@ -130,14 +128,12 @@ impl ProjectContextProvider {
         if PathBuf::from("docs").exists() {
             let walker = WalkBuilder::new("docs").hidden(false).build();
 
-            for entry in walker {
-                if let Ok(entry) = entry {
-                    let path = entry.path();
-                    if path.is_file() {
-                        if let Some(ext) = path.extension() {
-                            if ext == "md" || ext == "txt" || ext == "rst" {
-                                doc_files.push(path.to_path_buf());
-                            }
+            for entry in walker.flatten() {
+                let path = entry.path();
+                if path.is_file() {
+                    if let Some(ext) = path.extension() {
+                        if ext == "md" || ext == "txt" || ext == "rst" {
+                            doc_files.push(path.to_path_buf());
                         }
                     }
                 }
