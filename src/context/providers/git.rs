@@ -56,11 +56,15 @@ impl GitContextProvider {
 
             // Handle staged changes
             if staged_status != ' ' && staged_status != '?' {
+                let (insertions, deletions) = self
+                    .get_file_stats(file_path, true)
+                    .await
+                    .unwrap_or((None, None));
                 staged_files.push(FileStatus {
                     path: file_path.to_string(),
                     status: staged_status.to_string(),
-                    insertions: None, // Will be filled by diff stats if needed
-                    deletions: None,
+                    insertions,
+                    deletions,
                 });
             }
 
@@ -69,11 +73,15 @@ impl GitContextProvider {
                 if unstaged_status == '?' {
                     untracked_files.push(file_path.to_string());
                 } else {
+                    let (insertions, deletions) = self
+                        .get_file_stats(file_path, false)
+                        .await
+                        .unwrap_or((None, None));
                     unstaged_files.push(FileStatus {
                         path: file_path.to_string(),
                         status: unstaged_status.to_string(),
-                        insertions: None,
-                        deletions: None,
+                        insertions,
+                        deletions,
                     });
                 }
             }
@@ -89,6 +97,41 @@ impl GitContextProvider {
             is_clean,
             has_conflicts,
         })
+    }
+
+    /// Get file statistics (insertions/deletions) for a specific file
+    async fn get_file_stats(
+        &self,
+        file_path: &str,
+        staged: bool,
+    ) -> Result<(Option<u32>, Option<u32>)> {
+        let mut cmd_args = vec!["diff", "--numstat"];
+        if staged {
+            cmd_args.push("--cached");
+        }
+        cmd_args.push("--");
+        cmd_args.push(file_path);
+
+        let output = Command::new("git")
+            .args(&cmd_args)
+            .output()
+            .context("Failed to execute git diff --numstat")?;
+
+        if !output.status.success() {
+            return Ok((None, None));
+        }
+
+        let numstat_output = String::from_utf8(output.stdout)?;
+        if let Some(line) = numstat_output.lines().next() {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 2 {
+                let insertions = parts[0].parse::<u32>().ok();
+                let deletions = parts[1].parse::<u32>().ok();
+                return Ok((insertions, deletions));
+            }
+        }
+
+        Ok((None, None))
     }
 
     /// Get git diffs for staged and unstaged changes
