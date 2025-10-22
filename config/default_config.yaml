@@ -1,10 +1,8 @@
 # Default git-ai configuration
 # This file contains all default values and is embedded in the binary
-
 # Behavior configuration
 behavior:
   verbose: false
-
 # Command configurations
 commands:
   commit:
@@ -15,7 +13,7 @@ commands:
       - "Project"
       - "Agent"
       - "Interaction"
-
+      - "Repository"
   pr:
     prompt: null # null means use built-in prompt
     no_confirm: false
@@ -24,7 +22,7 @@ commands:
       - "Project"
       - "Agent"
       - "Interaction"
-
+      - "Repository"
   merge:
     prompt: null # null means use built-in prompt
     no_confirm: false
@@ -33,7 +31,7 @@ commands:
       - "Project"
       - "Agent"
       - "Interaction"
-
+      - "Repository"
   init:
     prompt: null # null means use built-in prompt
     no_confirm: false
@@ -42,7 +40,6 @@ commands:
       - "Project"
       - "Agent"
       - "Interaction"
-
   ignore:
     prompt: null # null means use built-in prompt
     no_confirm: false
@@ -51,9 +48,9 @@ commands:
       - "Project"
       - "Agent"
       - "Interaction"
-
-# Project dependency file patterns
-project:
+      - "Repository"
+# Repository dependency file patterns
+repository:
   dependency_files:
     # Package managers and dependency files
     package_managers:
@@ -64,7 +61,6 @@ project:
       - "pnpm-lock.yaml"
       - ".nvmrc"
       - ".node-version"
-
       # Python
       - "requirements.txt"
       - "requirements-dev.txt"
@@ -77,17 +73,14 @@ project:
       - "poetry.lock"
       - "conda.yaml"
       - "environment.yml"
-
       # Rust
       - "Cargo.toml"
       - "Cargo.lock"
-
       # Go
       - "go.mod"
       - "go.sum"
       - "go.work"
       - "go.work.sum"
-
       # Java/JVM
       - "pom.xml"
       - "build.gradle"
@@ -98,16 +91,13 @@ project:
       - "build.sbt"
       - "project/build.properties"
       - "project/plugins.sbt"
-
       # PHP
       - "composer.json"
       - "composer.lock"
-
       # Ruby
       - "Gemfile"
       - "Gemfile.lock"
       - "*.gemspec"
-
       # C#/.NET
       - "*.csproj"
       - "*.fsproj"
@@ -117,7 +107,6 @@ project:
       - "Directory.Build.props"
       - "Directory.Packages.props"
       - "nuget.config"
-
       # C/C++
       - "CMakeLists.txt"
       - "Makefile"
@@ -128,40 +117,31 @@ project:
       - "conanfile.txt"
       - "conanfile.py"
       - "vcpkg.json"
-
       # Swift
       - "Package.swift"
       - "Package.resolved"
-
       # Dart/Flutter
       - "pubspec.yaml"
       - "pubspec.lock"
-
       # Scala
       - "build.sbt"
       - "project/build.properties"
-
       # Kotlin
       - "build.gradle.kts"
-
       # Haskell
       - "*.cabal"
       - "cabal.project"
       - "stack.yaml"
       - "stack.yaml.lock"
-
       # Elm
       - "elm.json"
-
       # R
       - "DESCRIPTION"
       - "renv.lock"
-
       # Clojure
       - "project.clj"
       - "deps.edn"
       - "shadow-cljs.edn"
-
     # Build and automation files
     build_files:
       # Generic build
@@ -171,7 +151,6 @@ project:
       - "Taskfile.yml"
       - "build.sh"
       - "build.bat"
-
       # Docker
       - "Dockerfile"
       - "Dockerfile.*"
@@ -180,13 +159,11 @@ project:
       - "docker-compose.*.yml"
       - "docker-compose.*.yaml"
       - ".dockerignore"
-
       # Nix
       - "flake.nix"
       - "flake.lock"
       - "default.nix"
       - "shell.nix"
-
       # Webpack/bundlers
       - "webpack.config.js"
       - "webpack.*.js"
@@ -194,15 +171,12 @@ project:
       - "vite.config.js"
       - "vite.config.ts"
       - "esbuild.config.js"
-
       # Task runners
       - "gulpfile.js"
       - "Gruntfile.js"
-
       # CMake
       - "CMakeLists.txt"
       - "cmake/*.cmake"
-
     # Configuration files that affect compilation/runtime
     config_files:
       # TypeScript/JavaScript
@@ -216,14 +190,12 @@ project:
       - "eslint.config.js"
       - ".prettierrc.*"
       - "prettier.config.js"
-
       # Rust
       - "rust-toolchain.toml"
       - "rust-toolchain"
       - ".rustfmt.toml"
       - "rustfmt.toml"
       - "clippy.toml"
-
       # Python
       - "setup.cfg"
       - "tox.ini"
@@ -231,14 +203,11 @@ project:
       - "mypy.ini"
       - "pytest.ini"
       - "pyproject.toml"
-
       # EditorConfig
       - ".editorconfig"
-
       # Git
       - ".gitignore"
       - ".gitattributes"
       - ".gitmodules"
-
     # Additional patterns (empty by default, user can extend)
     additional_patterns: []

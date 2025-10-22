@@ -256,8 +256,9 @@ impl ContextCache {
     fn get_expiry_time(&self, context_type: ContextType) -> Option<chrono::DateTime<chrono::Utc>> {
         let duration = match context_type {
             ContextType::Git => chrono::Duration::minutes(5), // Git context expires quickly
+            ContextType::Repository => chrono::Duration::minutes(30), // Repository structure changes moderately
             ContextType::Project => chrono::Duration::hours(1), // Project structure is more stable
-            ContextType::Agent => chrono::Duration::hours(24), // Agent config rarely changes
+            ContextType::Agent => chrono::Duration::hours(24),  // Agent config rarely changes
             ContextType::Interaction => return None, // Interaction context doesn't expire (always fresh)
         };
 

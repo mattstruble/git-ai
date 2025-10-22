@@ -8,6 +8,8 @@ use std::path::PathBuf;
 pub enum ContextType {
     /// Git repository context (status, diffs, commits, branches)
     Git,
+    /// Repository structure context (directory tree, file analysis)
+    Repository,
     /// Project context (README, docs, project metadata)
     Project,
     /// Agent configuration context (.cursoragent files)
@@ -75,6 +77,7 @@ impl ContextBundle {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ContextData {
     Git(GitContext),
+    Repository(RepositoryContext),
     Project(ProjectContext),
     Agent(AgentContext),
     Interaction(InteractionContext),

@@ -19,7 +19,7 @@ pub struct CommandDispatcher {
 
 impl CommandDispatcher {
     pub fn new(config: Config) -> Result<Self> {
-        let context_manager = ContextManager::new()?;
+        let context_manager = ContextManager::new(config.clone())?;
         Ok(Self {
             config,
             agent: CursorAgent::new(),

@@ -2,11 +2,14 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
     pub behavior: BehaviorConfig,
     pub commands: CommandConfigs,
-    pub project: ProjectConfig,
+    #[serde(default)]
+    pub project: Option<ProjectConfig>,
+    #[serde(default)]
+    pub repository: RepositoryConfig,
 }
 
 impl Default for Config {
@@ -18,6 +21,12 @@ impl Default for Config {
 /// Project-specific configuration
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ProjectConfig {
+    // Project configuration can be extended here as needed
+}
+
+/// Repository-specific configuration
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RepositoryConfig {
     #[serde(default)]
     pub dependency_files: DependencyFilesConfig,
 }
@@ -31,13 +40,13 @@ pub struct DependencyFilesConfig {
     pub additional_patterns: Option<Vec<String>>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct BehaviorConfig {
     pub verbose: bool,
 }
 
 /// Configuration for individual commands
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct CommandConfigs {
     #[serde(default)]
     pub commit: CommitConfig,
@@ -56,7 +65,7 @@ pub struct CommandConfigs {
 }
 
 /// Configuration for commit command
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct CommitConfig {
     pub prompt: Option<String>,
     pub no_confirm: Option<bool>,
@@ -64,7 +73,7 @@ pub struct CommitConfig {
 }
 
 /// Configuration for PR command
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct PrConfig {
     pub prompt: Option<String>,
     pub no_confirm: Option<bool>,
@@ -72,7 +81,7 @@ pub struct PrConfig {
 }
 
 /// Configuration for merge command
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct MergeConfig {
     pub prompt: Option<String>,
     pub no_confirm: Option<bool>,
@@ -80,7 +89,7 @@ pub struct MergeConfig {
 }
 
 /// Configuration for init command
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct InitConfig {
     pub prompt: Option<String>,
     pub no_confirm: Option<bool>,
@@ -88,7 +97,7 @@ pub struct InitConfig {
 }
 
 /// Configuration for ignore command
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct IgnoreConfig {
     pub prompt: Option<String>,
     pub no_confirm: Option<bool>,
@@ -161,8 +170,8 @@ impl Config {
         sample.commands.ignore.prompt =
             Some("Custom ignore prompt (optional - overrides built-in prompt)".to_string());
 
-        // Add sample project customizations
-        sample.project.dependency_files.additional_patterns = Some(vec![
+        // Add sample repository customizations
+        sample.repository.dependency_files.additional_patterns = Some(vec![
             "custom-package.json".to_string(),
             "custom-build.sh".to_string(),
             "custom-config.toml".to_string(),
@@ -184,30 +193,21 @@ pub struct DefaultPatterns {
 
 impl Config {
     #[allow(dead_code)]
-    /// Get merged dependency file patterns (default + user overrides)
+    /// Get dependency file patterns from repository config
     pub fn get_dependency_patterns(&self) -> Vec<String> {
         let mut patterns = Vec::new();
+        let dep_config = &self.repository.dependency_files;
 
-        // Load default patterns
-        let default_patterns = get_default_patterns();
-        patterns.extend(default_patterns.package_managers);
-        patterns.extend(default_patterns.build_files);
-        patterns.extend(default_patterns.config_files);
-
-        // Add user patterns if configured
-        let dep_config = &self.project.dependency_files;
-
-        // User can override specific categories
-        if let Some(user_package_managers) = &dep_config.package_managers {
-            patterns.extend(user_package_managers.clone());
+        // Add patterns from each category if configured
+        if let Some(package_managers) = &dep_config.package_managers {
+            patterns.extend(package_managers.clone());
         }
-        if let Some(user_build_files) = &dep_config.build_files {
-            patterns.extend(user_build_files.clone());
+        if let Some(build_files) = &dep_config.build_files {
+            patterns.extend(build_files.clone());
         }
-        if let Some(user_config_files) = &dep_config.config_files {
-            patterns.extend(user_config_files.clone());
+        if let Some(config_files) = &dep_config.config_files {
+            patterns.extend(config_files.clone());
         }
-        // Additional patterns extend the defaults
         if let Some(additional) = &dep_config.additional_patterns {
             patterns.extend(additional.clone());
         }
@@ -225,6 +225,7 @@ impl Config {
             .iter()
             .filter_map(|name| match name.as_str() {
                 "Git" => Some(crate::context::ContextType::Git),
+                "Repository" => Some(crate::context::ContextType::Repository),
                 "Project" => Some(crate::context::ContextType::Project),
                 "Agent" => Some(crate::context::ContextType::Agent),
                 "Interaction" => Some(crate::context::ContextType::Interaction),
@@ -249,7 +250,7 @@ pub fn load_default_config() -> Config {
 /// Get the default dependency file patterns (used internally)
 pub fn get_default_patterns() -> DefaultPatterns {
     let config = load_default_config();
-    let dep_config = &config.project.dependency_files;
+    let dep_config = &config.repository.dependency_files;
 
     DefaultPatterns {
         package_managers: dep_config.package_managers.clone().unwrap_or_default(),

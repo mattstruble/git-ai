@@ -8,6 +8,8 @@ pub use file_hash::FileHashTracker;
 pub use providers::*;
 pub use types::*;
 
+use crate::config::Config;
+
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 
@@ -20,7 +22,7 @@ pub struct ContextManager {
 
 impl ContextManager {
     /// Create a new context manager with default providers
-    pub fn new() -> Result<Self> {
+    pub fn new(config: Config) -> Result<Self> {
         let cache = ContextCache::new()?;
         let cache_dir = cache.cache_dir().to_path_buf();
         let file_hash_tracker = FileHashTracker::new(cache_dir)?;
@@ -28,6 +30,10 @@ impl ContextManager {
 
         // Register default providers
         providers.insert(ContextType::Git, Box::new(GitContextProvider::new()));
+        providers.insert(
+            ContextType::Repository,
+            Box::new(RepositoryContextProvider::new(config.repository)),
+        );
         providers.insert(
             ContextType::Project,
             Box::new(ProjectContextProvider::new()),
@@ -221,7 +227,8 @@ impl ContextManager {
 
 impl Default for ContextManager {
     fn default() -> Self {
-        Self::new().expect("Failed to create default ContextManager")
+        let config = crate::config::Config::default();
+        Self::new(config).expect("Failed to create default ContextManager")
     }
 }
 
