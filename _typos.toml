@@ -12,6 +12,7 @@ git = "git"
 AI = "AI"
 CLI = "CLI"
 API = "API"
+edn = "edn"  # Clojure extensible data notation file extension
 # Add more project-specific terms as needed
 
 [type.rust]
