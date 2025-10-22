@@ -95,10 +95,10 @@ impl Command for CommitCommand {
             self.prompt_template().to_string()
         };
 
-        // Gather context and apply business logic
-        let required_context = self.required_context();
+        // Get context types from configuration or use defaults
+        let context_types = self.configured_context(self.config.context.as_ref());
         let context_bundle = context_manager
-            .gather_context_with_command(&required_context, Some("commit".to_string()))
+            .gather_context_with_command(&context_types, Some("commit".to_string()))
             .await?;
 
         // Check git context for staged files

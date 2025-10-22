@@ -30,6 +30,15 @@ pub trait Command {
     /// Specify which context types this command requires
     fn required_context(&self) -> Vec<ContextType>;
 
+    /// Get context types from configuration, falling back to default if not configured
+    fn configured_context(&self, config_context: Option<&Vec<String>>) -> Vec<ContextType> {
+        if let Some(context_names) = config_context {
+            crate::config::Config::parse_context_types(context_names)
+        } else {
+            self.required_context()
+        }
+    }
+
     /// Execute the command with resolved arguments and context manager
     async fn execute(
         &self,

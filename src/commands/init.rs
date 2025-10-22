@@ -115,9 +115,10 @@ impl Command for InitCommand {
         }
 
         // Gather context and apply to prompt
-        let required_context = self.required_context();
+        // Get context types from configuration or use defaults
+        let context_types = self.configured_context(self.config.context.as_ref());
         let context_bundle = context_manager
-            .gather_context_with_command(&required_context, Some("init".to_string()))
+            .gather_context_with_command(&context_types, Some("init".to_string()))
             .await?;
         let enhanced_prompt = apply_context(&prompt, &context_bundle)?;
 
