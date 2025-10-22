@@ -1,4 +1,4 @@
-use crate::context::{ContextData, ContextProvider, ContextType, ProjectContext};
+use crate::context::{ContextCache, ContextData, ContextProvider, ContextType, ProjectContext};
 use crate::cursor_agent::CursorAgent;
 use anyhow::{Context, Result};
 use ignore::WalkBuilder;
@@ -65,12 +65,14 @@ Here is the full repository documentation:
 /// Project context provider that processes project docs with AI
 pub struct ProjectContextProvider {
     agent: CursorAgent,
+    cache: ContextCache,
 }
 
 impl ProjectContextProvider {
-    pub fn new() -> Self {
+    pub fn new(cache: ContextCache) -> Self {
         Self {
             agent: CursorAgent::new(),
+            cache,
         }
     }
 
@@ -362,8 +364,31 @@ impl ProjectContextProvider {
         })
     }
 
-    /// Create a fallback context when AI processing is unavailable
-    fn create_fallback_context(&self, doc_files: &[PathBuf]) -> Result<ContextData> {
+    /// Handle fallback when AI processing fails - checks cache first, then creates empty context
+    async fn handle_ai_fallback(
+        &self,
+        doc_files: &[PathBuf],
+        error_message: &str,
+    ) -> Result<ContextData> {
+        println!(
+            "⚠️  AI processing failed ({}), checking for cached project context...",
+            error_message
+        );
+
+        // First, try to get existing cached data
+        if let Ok(Some(cached_data)) = self.cache.get(ContextType::Project).await {
+            println!("✅ Using cached project context as fallback");
+            return Ok(cached_data);
+        }
+
+        println!("📄 No cached project context found - using empty project context");
+
+        // No cache available, create empty context
+        self.create_empty_context(doc_files)
+    }
+
+    /// Create an empty fallback context when no cache is available
+    fn create_empty_context(&self, doc_files: &[PathBuf]) -> Result<ContextData> {
         let doc_file_names: Vec<String> =
             doc_files.iter().map(|p| p.display().to_string()).collect();
 
@@ -467,17 +492,10 @@ impl ContextProvider for ProjectContextProvider {
         let ai_response = match self.agent.prompt(&prompt).await {
             Ok(response) if !response.trim().is_empty() => response,
             Ok(_) => {
-                println!(
-                    "⚠️  AI processing returned empty response - using fallback project context"
-                );
-                return self.create_fallback_context(&doc_files);
+                return self.handle_ai_fallback(&doc_files, "empty response").await;
             }
             Err(e) => {
-                println!(
-                    "⚠️  AI processing failed ({}), using fallback project context",
-                    e
-                );
-                return self.create_fallback_context(&doc_files);
+                return self.handle_ai_fallback(&doc_files, &e.to_string()).await;
             }
         };
 
@@ -485,11 +503,9 @@ impl ContextProvider for ProjectContextProvider {
         let project_context = match self.parse_ai_response(&ai_response, &doc_files) {
             Ok(context) => context,
             Err(e) => {
-                println!(
-                    "⚠️  AI response parsing failed ({}), using fallback project context",
-                    e
-                );
-                return self.create_fallback_context(&doc_files);
+                return self
+                    .handle_ai_fallback(&doc_files, &format!("parsing failed: {}", e))
+                    .await;
             }
         };
 

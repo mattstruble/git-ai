@@ -36,7 +36,9 @@ impl ContextManager {
         );
         providers.insert(
             ContextType::Project,
-            Box::new(ProjectContextProvider::new()),
+            Box::new(ProjectContextProvider::new(
+                ContextCache::new().expect("Failed to create cache for Project provider"),
+            )),
         );
         providers.insert(ContextType::Agent, Box::new(AgentContextProvider::new()));
         providers.insert(
