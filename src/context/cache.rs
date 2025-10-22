@@ -69,7 +69,13 @@ impl ContextCache {
     /// Store context data in cache
     pub async fn store(&self, context_type: ContextType, data: &ContextData) -> Result<()> {
         let cache_file = self.cache_file_path(context_type);
-        let git_hashes = self.get_git_hashes().await?;
+
+        // For contexts that use file-based invalidation, we don't need git hashes
+        // since invalidation is handled by FileHashTracker
+        let git_hashes = match context_type {
+            ContextType::Project | ContextType::Agent => (None, None), // File-based contexts
+            _ => self.get_git_hashes().await?,                         // Git-based contexts
+        };
 
         let entry = CacheEntry {
             data: data.clone(),
@@ -193,6 +199,8 @@ impl ContextCache {
     }
 
     /// Check if cache entry is still valid
+    /// For file-based contexts, this just checks expiry time - file hash checking is done separately
+    /// For git-based contexts, this checks git hashes as well
     async fn is_cache_valid(&self, entry: &CacheEntry) -> Result<bool> {
         // Check expiry time
         if let Some(expires_at) = entry.expires_at {
@@ -201,18 +209,10 @@ impl ContextCache {
             }
         }
 
-        // Check git hashes
-        let current_hashes = self.get_git_hashes().await?;
-
-        // If commit hash changed, invalidate
-        if entry.git_commit_hash != current_hashes.0 {
-            return Ok(false);
-        }
-
-        // If working tree hash changed, invalidate
-        if entry.working_tree_hash != current_hashes.1 {
-            return Ok(false);
-        }
+        // For contexts that use file-based invalidation, don't check git hashes here
+        // The file hash checking is done in ContextManager.check_needs_refresh()
+        // This allows contexts like Project to be invalidated based on file content changes
+        // rather than git commit changes
 
         Ok(true)
     }
