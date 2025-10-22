@@ -1,8 +1,10 @@
 pub mod cache;
+pub mod file_hash;
 pub mod providers;
 pub mod types;
 
 pub use cache::ContextCache;
+pub use file_hash::FileHashTracker;
 pub use providers::*;
 pub use types::*;
 
@@ -12,6 +14,7 @@ use std::collections::HashMap;
 /// Central manager for context gathering and caching
 pub struct ContextManager {
     cache: ContextCache,
+    file_hash_tracker: FileHashTracker,
     providers: HashMap<ContextType, Box<dyn ContextProvider>>,
 }
 
@@ -19,6 +22,8 @@ impl ContextManager {
     /// Create a new context manager with default providers
     pub fn new() -> Result<Self> {
         let cache = ContextCache::new()?;
+        let cache_dir = cache.cache_dir().to_path_buf();
+        let file_hash_tracker = FileHashTracker::new(cache_dir)?;
         let mut providers: HashMap<ContextType, Box<dyn ContextProvider>> = HashMap::new();
 
         // Register default providers
@@ -33,7 +38,11 @@ impl ContextManager {
             Box::new(InteractionContextProvider::new()),
         );
 
-        Ok(Self { cache, providers })
+        Ok(Self {
+            cache,
+            file_hash_tracker,
+            providers,
+        })
     }
 
     /// Gather specified context types with command information
@@ -113,18 +122,25 @@ impl ContextManager {
 
     /// Get context from cache or fetch fresh if needed
     async fn get_or_fetch_context(&self, context_type: ContextType) -> Result<ContextData> {
-        // Try to get from cache first
-        if let Some(cached_data) = self.cache.get(context_type).await? {
-            return Ok(cached_data);
+        // Check if we need to refresh based on file changes (for file-based contexts)
+        let needs_refresh = self.check_needs_refresh(context_type).await?;
+
+        // Try to get from cache first if no refresh needed
+        if !needs_refresh {
+            if let Some(cached_data) = self.cache.get(context_type).await? {
+                return Ok(cached_data);
+            }
         }
 
-        // Not in cache or expired, fetch fresh
+        // Cache miss or needs refresh - fetch fresh data
         if let Some(provider) = self.providers.get(&context_type) {
             let fresh_data = provider.gather().await?;
 
-            // Cache the fresh data
-            self.cache.store(context_type, &fresh_data).await?;
+            // Update file hashes for file-based contexts
+            self.update_file_hashes_for_context(context_type).await?;
 
+            // Store in cache
+            self.cache.store(context_type, &fresh_data).await?;
             Ok(fresh_data)
         } else {
             anyhow::bail!(
@@ -132,6 +148,36 @@ impl ContextManager {
                 context_type
             );
         }
+    }
+
+    /// Check if context needs refresh based on file changes
+    async fn check_needs_refresh(&self, context_type: ContextType) -> Result<bool> {
+        if let Some(provider) = self.providers.get(&context_type) {
+            let file_deps = provider.get_file_dependencies();
+
+            // If no file dependencies, use git-based or time-based caching
+            if file_deps.is_empty() {
+                return Ok(false); // Let cache TTL handle it
+            }
+
+            // Check if any dependent files have changed
+            self.file_hash_tracker.files_changed(&file_deps).await
+        } else {
+            Ok(true) // No provider, assume needs refresh
+        }
+    }
+
+    /// Update file hashes for a context type
+    async fn update_file_hashes_for_context(&self, context_type: ContextType) -> Result<()> {
+        if let Some(provider) = self.providers.get(&context_type) {
+            let file_deps = provider.get_file_dependencies();
+            if !file_deps.is_empty() {
+                self.file_hash_tracker
+                    .update_file_hashes(&file_deps)
+                    .await?;
+            }
+        }
+        Ok(())
     }
 
     /// Force refresh context (bypass cache)

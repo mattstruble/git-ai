@@ -76,6 +76,7 @@ impl Command for CommitCommand {
     fn required_context(&self) -> Vec<ContextType> {
         vec![
             ContextType::Git,
+            ContextType::Project,
             ContextType::Agent,
             ContextType::Interaction,
         ]

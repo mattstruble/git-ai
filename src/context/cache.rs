@@ -35,6 +35,11 @@ impl ContextCache {
         Ok(Self { cache_dir })
     }
 
+    /// Get the cache directory path (needed by FileHashTracker)
+    pub fn cache_dir(&self) -> &std::path::Path {
+        &self.cache_dir
+    }
+
     /// Get cached context data if valid
     pub async fn get(&self, context_type: ContextType) -> Result<Option<ContextData>> {
         let cache_file = self.cache_file_path(context_type);
