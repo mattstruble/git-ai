@@ -23,13 +23,10 @@ impl FileHashTracker {
 
         // Ensure cache directory exists
         if !cache_dir.exists() {
-            std::fs::create_dir_all(&cache_dir)
-                .context("Failed to create cache directory")?;
+            std::fs::create_dir_all(&cache_dir).context("Failed to create cache directory")?;
         }
 
-        Ok(Self {
-            hash_file,
-        })
+        Ok(Self { hash_file })
     }
 
     /// Load existing file hashes from disk
@@ -42,16 +39,16 @@ impl FileHashTracker {
             .await
             .context("Failed to read file hashes")?;
 
-        let hash_map: FileHashMap = serde_json::from_str(&contents)
-            .context("Failed to parse file hashes")?;
+        let hash_map: FileHashMap =
+            serde_json::from_str(&contents).context("Failed to parse file hashes")?;
 
         Ok(hash_map)
     }
 
     /// Save file hashes to disk
     pub async fn save_hashes(&self, hash_map: &FileHashMap) -> Result<()> {
-        let contents = serde_json::to_string_pretty(hash_map)
-            .context("Failed to serialize file hashes")?;
+        let contents =
+            serde_json::to_string_pretty(hash_map).context("Failed to serialize file hashes")?;
 
         async_fs::write(&self.hash_file, contents)
             .await
