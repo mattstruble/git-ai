@@ -96,7 +96,9 @@ impl Command for CommitCommand {
 
         // Gather context and apply business logic
         let required_context = self.required_context();
-        let context_bundle = context_manager.gather_context(&required_context).await?;
+        let context_bundle = context_manager
+            .gather_context_with_command(&required_context, Some("commit".to_string()))
+            .await?;
 
         // Check git context for staged files
         if let Some(ContextData::Git(git_context)) = context_bundle.get(ContextType::Git) {

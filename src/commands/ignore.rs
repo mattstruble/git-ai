@@ -118,7 +118,9 @@ impl Command for IgnoreCommand {
 
         // Gather context and apply to prompt
         let required_context = self.required_context();
-        let context_bundle = context_manager.gather_context(&required_context).await?;
+        let context_bundle = context_manager
+            .gather_context_with_command(&required_context, Some("ignore".to_string()))
+            .await?;
         let enhanced_prompt = apply_context(&prompt, &context_bundle)?;
 
         // Handle dry run
