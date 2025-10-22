@@ -5,6 +5,63 @@ use ignore::WalkBuilder;
 use serde_json;
 use std::path::PathBuf;
 
+/// AI analysis prompt for processing documentation into structured project context
+static DOCUMENTATION_ANALYSIS_PROMPT: &str = r#"You are an AI code analysis assistant. I need you to analyze documentation and respond with ONLY JSON - no other text, no explanations, no file creation.
+
+CRITICAL:
+- Do NOT create any files
+- Do NOT write anything except the JSON response
+- Do NOT add any explanatory text before or after the JSON
+- Return ONLY the JSON object as specified
+
+Analyze the provided repository documentation and respond with ONLY valid JSON following this exact schema:
+
+{
+"project": {
+  "name": "<detected project name>",
+  "description": "<one-sentence summary of what the project does>",
+  "primary_language": "<main programming language or framework>",
+  "keywords": ["<short tags about the project>"],
+  "usage": {
+    "commands": ["<common CLI commands or APIs users call>"],
+    "examples": ["<short example snippets>"],
+    "configuration": ["<key env vars, config files, or flags>"]
+  },
+  "development": {
+    "setup_steps": ["<build or install instructions>"],
+    "dependencies": ["<main packages, frameworks, or libraries>"],
+    "testing": ["<test commands or frameworks>"]
+  },
+  "breaking_changes": {
+    "rules": ["<any stated versioning or backwards compatibility policies>"],
+    "indicators": ["<phrases or patterns that indicate breaking changes>"]
+  },
+  "conventions": {
+    "commit_style": "<rules for commit messages or conventional commits if any>",
+    "branching": "<branch naming conventions>",
+    "release_process": "<release workflow, changelog rules, or tagging>",
+    "docs_reference": "<key documentation files relevant to dev process>"
+  },
+  "misc": {
+    "notable_designs": ["<high-level architecture or design patterns>"],
+    "important_files": ["<critical paths or modules mentioned in docs>"],
+    "security_notes": ["<any cautions, credentials, or privacy info>"]
+  }
+}
+}
+
+Rules:
+- Output only the JSON object — no prose or markdown.
+- If a field is unknown, use an empty array or null.
+- Keep string values concise (max ~200 characters each).
+- Preserve technical accuracy — this context will be used for automated code reasoning.
+- Do not hallucinate features not found in the documentation.
+
+Here is the full repository documentation:
+---
+{}
+---"#;
+
 /// Project context provider that processes project docs with AI
 pub struct ProjectContextProvider {
     agent: CursorAgent,
@@ -112,64 +169,7 @@ impl ProjectContextProvider {
 
     /// Create the AI prompt for processing documentation
     fn create_analysis_prompt(&self, docs_content: &str) -> String {
-        format!(
-            r#"You are an AI code analysis assistant. I need you to analyze documentation and respond with ONLY JSON - no other text, no explanations, no file creation.
-
-CRITICAL:
-- Do NOT create any files
-- Do NOT write anything except the JSON response
-- Do NOT add any explanatory text before or after the JSON
-- Return ONLY the JSON object as specified
-
-Analyze the provided repository documentation and respond with ONLY valid JSON following this exact schema:
-
-{{
-"project": {{
-  "name": "<detected project name>",
-  "description": "<one-sentence summary of what the project does>",
-  "primary_language": "<main programming language or framework>",
-  "keywords": ["<short tags about the project>"],
-  "usage": {{
-    "commands": ["<common CLI commands or APIs users call>"],
-    "examples": ["<short example snippets>"],
-    "configuration": ["<key env vars, config files, or flags>"]
-  }},
-  "development": {{
-    "setup_steps": ["<build or install instructions>"],
-    "dependencies": ["<main packages, frameworks, or libraries>"],
-    "testing": ["<test commands or frameworks>"]
-  }},
-  "breaking_changes": {{
-    "rules": ["<any stated versioning or backwards compatibility policies>"],
-    "indicators": ["<phrases or patterns that indicate breaking changes>"]
-  }},
-  "conventions": {{
-    "commit_style": "<rules for commit messages or conventional commits if any>",
-    "branching": "<branch naming conventions>",
-    "release_process": "<release workflow, changelog rules, or tagging>",
-    "docs_reference": "<key documentation files relevant to dev process>"
-  }},
-  "misc": {{
-    "notable_designs": ["<high-level architecture or design patterns>"],
-    "important_files": ["<critical paths or modules mentioned in docs>"],
-    "security_notes": ["<any cautions, credentials, or privacy info>"]
-  }}
-}}
-}}
-
-Rules:
-- Output only the JSON object — no prose or markdown.
-- If a field is unknown, use an empty array or null.
-- Keep string values concise (max ~200 characters each).
-- Preserve technical accuracy — this context will be used for automated code reasoning.
-- Do not hallucinate features not found in the documentation.
-
-Here is the full repository documentation:
----
-{}
----"#,
-            docs_content
-        )
+        DOCUMENTATION_ANALYSIS_PROMPT.replace("{}", docs_content)
     }
 
     /// Parse AI response into ProjectContext
