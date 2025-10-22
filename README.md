@@ -1,10 +1,10 @@
 # git-ai
 
-AI-assisted git workflow with cursor-agent integration
+AI-assisted git workflow with cursor-agent integration and intelligent context system
 
 ## Overview
 
-`git-ai` is a git plugin that provides AI-powered assistance for common git workflows including commits, pull requests, and merges. It integrates with cursor-agent to generate contextual prompts and suggestions.
+`git-ai` is a git plugin that provides AI-powered assistance for common git workflows including commits, pull requests, and merges. It integrates with cursor-agent to generate contextual prompts and suggestions using an advanced context system that understands your project structure, documentation, and development patterns.
 
 ## Features
 
@@ -13,12 +13,36 @@ AI-assisted git workflow with cursor-agent integration
 - **Merge Summaries**: Get AI assistance with merge conflict resolution and summary messages
 - **Project Initialization**: AI-guided setup of new projects with language-specific structure and tooling
 - **Gitignore Management**: Intelligent .gitignore file management with structured language sections
+- **Intelligent Context System**: Advanced context providers that understand your project ([learn more](docs/context-types.md))
+  - **Git Context**: Repository status, diffs, commits, and branch information
+  - **Repository Context**: File structure, dependencies, and project organization
+  - **Project Context**: AI-processed documentation analysis (README, docs, etc.)
+  - **Agent Context**: Configuration files and development environment
+  - **Interaction Context**: User intent and command-specific metadata
+- **Smart Caching**: File-based cache invalidation using MD5 hashes for optimal performance
 - **Configuration Support**: Per-command configuration with override capabilities
 - **Cross-platform**: Works on macOS, Linux, and other Unix-like systems
 
 ## Installation
 
-### Using Nix Flakes (Recommended)
+### Using Homebrew
+
+```bash
+brew tap mattstruble/formulae
+brew install git-ai
+```
+
+### Using Cargo
+
+```bash
+# From local source
+cargo install --path .
+
+# From crates.io (when published)
+cargo install git-ai
+```
+
+### Using Nix Flakes
 
 #### Install directly from the repository
 
@@ -121,55 +145,6 @@ Add to your Home Manager `flake.nix`:
 }
 ```
 
-##### Traditional NixOS configuration.nix
-
-For non-flake NixOS configurations, add to your `configuration.nix`:
-
-```nix
-{ config, pkgs, ... }:
-let
-  git-ai = pkgs.callPackage (pkgs.fetchFromGitHub {
-    owner = "mattstruble";
-    repo = "git-ai";
-    rev = "main"; # or specific commit/tag
-    sha256 = ""; # nix will tell you the correct hash
-  }) {};
-in
-{
-  environment.systemPackages = [
-    git-ai
-    # ... other packages
-  ];
-}
-```
-
-Then rebuild your system:
-
-```bash
-# NixOS
-sudo nixos-rebuild switch --flake .
-
-# Home Manager
-home-manager switch --flake .
-```
-
-### Using Homebrew
-
-```bash
-brew tap mattstruble/formulae
-brew install git-ai
-```
-
-### Using Cargo
-
-```bash
-# From local source
-cargo install --path .
-
-# From crates.io (when published)
-cargo install git-ai
-```
-
 ### Manual Installation
 
 ```bash
@@ -183,7 +158,16 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ## Prerequisites
 
-Before using `git-ai`, you need to have `cursor-agent` installed on your system:
+Before using `git-ai`, you need to have `cursor-agent` installed on your system.
+
+## Getting Started
+
+New to git-ai? Start here:
+
+- **[Understanding Context](docs/context-system.md)** - Learn how git-ai understands your project
+- **[Context Types](docs/context-types.md)** - Detailed guide to what information git-ai uses
+- **[Configuration Guide](docs/configuration.md)** - Customize git-ai for your workflow
+- **[Performance & Caching](docs/caching.md)** - Understand how git-ai gets faster over time
 
 ## Usage
 
@@ -275,14 +259,26 @@ git ai config --show
 git ai config --init
 ```
 
+> **💡 Tip**: Learn about [configuration options](docs/configuration.md) and [context types](docs/context-types.md) to customize git-ai for your workflow.
+
 ## How it Works
 
 1. **Git Plugin**: Works as a native git plugin with `git ai` command integration
-2. **Cursor-agent Integration**: Requires cursor-agent to be pre-installed on your system
-3. **Context Generation**: Creates intelligent, context-aware prompts based on the selected command
-4. **AI Processing**: Passes structured prompts to cursor-agent for AI-powered assistance
-5. **Configuration**: Supports per-command configuration with user overrides
-6. **Dry Run Support**: Preview prompts and changes before execution
+2. **Context System**: Intelligently gathers project context using specialized providers ([learn more](docs/context-system.md))
+3. **Smart Caching**: Uses file-based MD5 hashing for optimal cache invalidation ([learn more](docs/caching.md))
+4. **Cursor-agent Integration**: Requires cursor-agent to be pre-installed on your system
+5. **AI Processing**: Passes structured prompts with rich context to cursor-agent
+6. **Configuration**: Supports per-command configuration with user overrides ([learn more](docs/configuration.md))
+7. **Dry Run Support**: Preview prompts and changes before execution
+
+## Architecture
+
+`git-ai` features a sophisticated context system that provides rich, structured information to the AI:
+
+- **[Context System](docs/context-system.md)**: Overview of the context architecture
+- **[Context Types](docs/context-types.md)**: Detailed documentation of available context providers
+- **[Caching](docs/caching.md)**: Smart caching system with file-based invalidation
+- **[Configuration](docs/configuration.md)**: Complete configuration reference
 
 ## Configuration
 
@@ -297,6 +293,8 @@ Generate a sample configuration:
 git ai config --init
 ```
 
+For complete configuration documentation, see **[Configuration Guide](docs/configuration.md)**.
+
 Example configuration:
 
 ```yaml
@@ -307,12 +305,40 @@ commands:
   commit:
     prompt: "Custom commit prompt override"
     no_confirm: false
+    context:
+      - "Git"
+      - "Repository"
+      - "Project"
+      - "Agent"
   init:
     prompt: "Custom initialization prompt"
     no_confirm: false
   ignore:
     no_confirm: true # Skip confirmation for ignore operations
 ```
+
+## Learn More
+
+### Documentation
+
+- **[Context System](docs/context-system.md)** - How git-ai understands your project
+- **[Context Types](docs/context-types.md)** - Complete guide to all five context types
+- **[Configuration](docs/configuration.md)** - Comprehensive configuration reference
+- **[Caching](docs/caching.md)** - Performance optimization and cache management
+
+### Key Concepts
+
+**Context Types**: git-ai uses five types of context to understand your project:
+
+- **Git**: Current repository state and changes
+- **Repository**: File structure and dependencies
+- **Project**: Documentation and conventions
+- **Agent**: Your configuration preferences
+- **Interaction**: What command you're running
+
+**Performance**: git-ai gets faster over time thanks to intelligent caching. The first run analyzes your project (2-4 seconds), subsequent runs are much faster (<1 second).
+
+**Configuration**: Customize which context types each command uses, set custom prompts, and configure behavior per command or globally.
 
 ## License
 
