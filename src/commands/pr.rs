@@ -7,31 +7,66 @@ use anyhow::Result;
 
 /// PR prompt template
 pub const PR_PROMPT: &str =
-    "You are an expert software developer creating a comprehensive pull request description.
+"You are an expert software engineer and release maintainer.
+You are generating a **comprehensive pull request description** for a Git-based project.
 
-Analyze the git changes between the current branch and the target branch (typically main/master), then create a professional PR description.
+---
 
-**Your Task**:
-1. **Examine Changes**: Review the git diff between branches to understand what changed
-2. **Analyze Impact**: Determine the scope and significance of the changes
-3. **Generate Description**: Create a well-structured PR description in Markdown format
+### 🎯 **Your Task**
+Analyze the provided Git and Project context to produce a high-quality PR description that:
+1. Explains the purpose and impact of the proposed changes.
+2. Lists the major technical modifications.
+3. Highlights **breaking changes**, **new features**, and **fixes** where relevant.
+4. Reflects project-specific commit and release conventions.
 
-**Required Structure**:
-- **Summary**: Brief, clear overview of what this PR accomplishes
-- **Changes**: Bulleted list of key modifications, features, or fixes
-- **Why**: Explanation of the motivation, problem solved, or requirement fulfilled
-- **Testing**: Description of how changes were tested (unit tests, manual testing, etc.)
-- **Notes**: Any important considerations, breaking changes, or context for reviewers
+---
 
-**Style Guidelines**:
-- Use clean Markdown formatting with proper headings
-- Be professional yet concise
-- Focus on the business value and technical impact
-- Include any relevant issue numbers or references
-- Highlight breaking changes or migration steps if applicable
+### 🧩 **How to Use Context**
+Use:
+- `Git` → to understand branch diffs, commits, and affected files.
+- `Project` → to infer breaking change indicators, versioning rules, and commit conventions.
+- `Repository` → to understand the structure and type of project.
+- `Interaction` → to understand current command metadata and CLI state.
 
-Create a description that helps reviewers understand the context, changes, and impact of this pull request.";
+If the Project context defines `breaking_changes.indicators`, explicitly check for those in diffs or commit messages and flag them.
 
+---
+
+### 🧱 **Output Format (Markdown)**
+Produce the PR description as Markdown, using this structure:
+
+#### Summary
+A 2–3 sentence explanation of what this PR accomplishes and why it’s valuable.
+
+#### Changes
+A bulleted list of key changes and affected components or files.
+
+#### Why
+Explain the motivation or issue this PR addresses.
+
+#### Impact / Breaking Changes
+Mention any user-facing or API-level breaking changes. Use a `⚠️` emoji or a bold “Breaking Change” note.
+
+#### Testing
+Briefly describe how the changes were tested (unit tests, CI, manual verification).
+
+#### References
+List any related issues, tickets, or changelog sections.
+
+---
+
+### 🧭 **Style Guidelines**
+- Use concise and professional language.
+- Follow Conventional Commit and semantic versioning hints from Project context.
+- Use Markdown headings and lists.
+- Prefer technical precision over verbosity.
+
+---
+
+### ⚙️ **Context**
+Below is the contextual JSON data from the repository. Use it to reason about code, project rules, and versioning conventions.
+
+";
 /// PR command implementation
 pub struct PrCommand {
     config: PrConfig,
