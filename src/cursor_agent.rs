@@ -13,7 +13,7 @@ impl CursorAgent {
     /// Execute cursor-agent with the given prompt
     pub async fn execute(&self, prompt: &str, no_confirm: bool) -> Result<()> {
         let mut cmd = StdCommand::new("cursor-agent");
-        cmd.args(["prompt", prompt]);
+        cmd.args([prompt]);
 
         if no_confirm {
             cmd.arg("--force");
@@ -31,8 +31,7 @@ impl CursorAgent {
     /// Execute a one-off prompt and return the result as a string
     pub async fn prompt(&self, prompt: &str) -> Result<String> {
         let mut cmd = StdCommand::new("cursor-agent");
-        cmd.arg("--print");
-        cmd.arg(prompt);
+        cmd.args(["-p", prompt]);
 
         // Capture output instead of letting it run interactively
         let output = cmd.output().context("Failed to execute cursor-agent")?;
