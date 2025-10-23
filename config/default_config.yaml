@@ -22,7 +22,6 @@ commands:
       - "Project"
       - "Agent"
       - "Interaction"
-      - "Repository"
   merge:
     prompt: null # null means use built-in prompt
     no_confirm: false
@@ -31,12 +30,11 @@ commands:
       - "Project"
       - "Agent"
       - "Interaction"
-      - "Repository"
   init:
     prompt: null # null means use built-in prompt
     no_confirm: false
     context:
-      - "Git"
+      - "Repository"
       - "Project"
       - "Agent"
       - "Interaction"
@@ -44,8 +42,6 @@ commands:
     prompt: null # null means use built-in prompt
     no_confirm: false
     context:
-      - "Git"
-      - "Project"
       - "Agent"
       - "Interaction"
       - "Repository"
