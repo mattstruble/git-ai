@@ -103,7 +103,7 @@ jobs:
         run: |
           cp target/${{ matrix.target }}/release/git-ai.exe ${{ matrix.name }}
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.name }}
           path: ${{ matrix.name }}
@@ -158,7 +158,7 @@ jobs:
         with:
           ref: ${{ needs.create-release.outputs.tag }} # Get the tag with updated changelog
       - name: Download all artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           path: artifacts
       - name: Extract changelog content for release
