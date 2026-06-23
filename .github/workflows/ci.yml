@@ -26,7 +26,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cache cargo dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index/
@@ -59,7 +59,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index/
@@ -84,7 +84,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo audit
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cargo
           key: ${{ runner.os }}-cargo-audit
